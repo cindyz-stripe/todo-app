@@ -1,0 +1,2022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo ✿</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-start: #fef0f5;
+            --bg-mid: #eee8ff;
+            --bg-end: #e4f5f0;
+            --card-bg: #ffffff;
+            --text: #3a3250;
+            --text-secondary: #8880a0;
+            --text-placeholder: #c0b8d8;
+            --link: #a07ed4;
+            --danger: #f09898;
+            --radius: 14px;
+            --radius-sm: 8px;
+            --shadow-card: 0 2px 16px rgba(120, 100, 160, 0.07);
+            --shadow-hover: 0 6px 24px rgba(120, 100, 160, 0.12);
+            --shadow-drag: 0 12px 40px rgba(120, 100, 160, 0.2);
+            --font: 'Nunito', system-ui, -apple-system, sans-serif;
+            --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+            --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        body {
+            font-family: var(--font);
+            background: linear-gradient(140deg, var(--bg-start) 0%, var(--bg-mid) 45%, var(--bg-end) 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            color: var(--text);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Landing page */
+        .landing {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            gap: 12px;
+            padding: 24px;
+            text-align: center;
+        }
+        .landing-icon {
+            font-size: 64px;
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .landing h1 {
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--text);
+            letter-spacing: -0.5px;
+        }
+        .landing p { color: var(--text-secondary); font-size: 15px; }
+        .landing .open-btn {
+            margin-top: 12px;
+            padding: 14px 40px;
+            font-family: var(--font);
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+            background: linear-gradient(135deg, #f8a4c8, #b8a4e8);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 250ms var(--ease-bounce), box-shadow 250ms var(--ease-out);
+            box-shadow: 0 4px 20px rgba(184, 164, 232, 0.3);
+        }
+        .landing .open-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 28px rgba(184, 164, 232, 0.45);
+        }
+        .landing .open-btn:active { transform: scale(0.98); }
+        .landing .hint {
+            font-size: 13px;
+            color: var(--text-placeholder);
+            margin-top: 4px;
+        }
+        .landing .hint kbd {
+            background: rgba(184, 164, 232, 0.15);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: var(--font);
+            font-size: 12px;
+        }
+
+        /* Drop overlay for file drag-and-drop */
+        .drop-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(184, 164, 232, 0.15);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+            font-size: 20px;
+            font-weight: 700;
+            color: #7e5ec2;
+        }
+        .drop-overlay.active { display: flex; }
+
+        /* Header */
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 28px;
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(180, 160, 220, 0.1);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-title { font-size: 18px; font-weight: 800; letter-spacing: -0.3px; }
+        .header-file {
+            font-size: 13px;
+            color: var(--text-secondary);
+            background: rgba(184, 164, 232, 0.1);
+            padding: 3px 10px;
+            border-radius: 20px;
+        }
+        .header-actions { display: flex; align-items: center; gap: 12px; }
+        .sync-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+        .sync-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #8dd4bc;
+            transition: background 300ms ease;
+        }
+        .sync-dot.saving { background: #f8d4a0; }
+        .sync-dot.external { background: #a4b8f8; }
+        .sync-dot.error { background: #f8a0a0; }
+        .header-btn {
+            padding: 6px 16px;
+            font-family: var(--font);
+            font-size: 13px;
+            font-weight: 600;
+            border: 1.5px solid rgba(184, 164, 232, 0.3);
+            background: white;
+            border-radius: 20px;
+            color: var(--text);
+            cursor: pointer;
+            transition: all 200ms var(--ease-out);
+        }
+        .header-btn:hover {
+            border-color: #b8a4e8;
+            background: rgba(184, 164, 232, 0.08);
+        }
+
+        /* Main content */
+        .main {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 20px 16px 80px;
+        }
+
+        /* Banner */
+        .banner {
+            background: linear-gradient(135deg, #fff0f5, #f8f0ff);
+            border: 1.5px solid rgba(248, 164, 200, 0.3);
+            border-radius: var(--radius);
+            padding: 10px 18px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            font-weight: 700;
+            color: #c4607e;
+            text-align: center;
+        }
+
+        /* Section */
+        .section {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            margin-bottom: 16px;
+            box-shadow: var(--shadow-card);
+            overflow: hidden;
+            transition: box-shadow 300ms var(--ease-out);
+        }
+        .section:hover { box-shadow: var(--shadow-hover); }
+
+        .section-header {
+            padding: 12px 20px;
+            font-size: 15px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: default;
+            user-select: none;
+            letter-spacing: -0.2px;
+        }
+        .section-header-text { cursor: text; }
+        .section-header-text:hover { opacity: 0.7; }
+        .section-header-edit {
+            border: none;
+            outline: none;
+            font: inherit;
+            font-weight: 800;
+            background: transparent;
+            color: inherit;
+            padding: 0;
+            width: 100%;
+        }
+        .section-collapse-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            color: inherit;
+            opacity: 0.5;
+            transition: all 150ms ease;
+        }
+        .section-collapse-btn:hover { opacity: 1; background: rgba(0,0,0,0.05); }
+        .section-items { padding: 4px 0 8px; }
+        .section-items.collapsed { display: none; }
+
+        /* Item */
+        .item {
+            display: flex;
+            align-items: flex-start;
+            padding: 5px 14px 5px 8px;
+            gap: 4px;
+            position: relative;
+            transition: background 150ms ease, opacity 150ms ease;
+            border-radius: 8px;
+            margin: 0 8px;
+            overflow: visible;
+        }
+        .item:hover { background: rgba(184, 164, 232, 0.06); }
+        .item.dragging { opacity: 0.3; }
+        /* blankBefore preserved in data model for markdown round-trip, but not shown visually */
+
+        .drag-handle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 28px;
+            cursor: grab;
+            color: var(--text-placeholder);
+            font-size: 11px;
+            letter-spacing: 1px;
+            user-select: none;
+            flex-shrink: 0;
+            opacity: 0;
+            transition: opacity 150ms ease;
+            border-radius: 4px;
+        }
+        .item:hover .drag-handle { opacity: 1; }
+        .drag-handle:hover { background: rgba(184, 164, 232, 0.1); }
+        .drag-handle:active { cursor: grabbing; }
+
+        .checkbox-wrapper {
+            flex-shrink: 0;
+            width: 22px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .checkbox {
+            width: 18px;
+            height: 18px;
+            border-radius: 5px;
+            border: 2px solid #d4cce8;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 200ms var(--ease-bounce);
+            background: white;
+            flex-shrink: 0;
+        }
+        .checkbox:hover { border-color: #b8a4e8; transform: scale(1.1); }
+        .checkbox.checked {
+            background: linear-gradient(135deg, #f8a4c8, #daa4e8);
+            border-color: transparent;
+            transform: scale(1);
+        }
+        .checkbox.checked svg { opacity: 1; transform: scale(1); }
+        .checkbox svg {
+            width: 11px;
+            height: 11px;
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 200ms var(--ease-bounce);
+        }
+
+        .item-content {
+            flex: 1;
+            min-width: 0;
+            min-height: 28px;
+            display: flex;
+            align-items: flex-start;
+        }
+        .item-text {
+            flex: 1;
+            line-height: 28px;
+            font-size: 14px;
+            cursor: text;
+            word-break: break-word;
+            padding: 0 4px;
+            border-radius: 4px;
+            transition: background 150ms ease;
+        }
+        .item-text:hover { background: rgba(184, 164, 232, 0.06); }
+        .item-text.checked {
+            text-decoration: line-through;
+            color: var(--text-secondary);
+            opacity: 0.6;
+        }
+        .item-text a {
+            color: var(--link);
+            text-decoration: none;
+            border-bottom: 1px solid rgba(160, 126, 212, 0.3);
+            transition: border-color 150ms ease;
+        }
+        .item-text a:hover { border-color: var(--link); }
+        .item-edit {
+            flex: 1;
+            border: none;
+            outline: none;
+            font-family: var(--font);
+            font-size: 14px;
+            line-height: 28px;
+            background: rgba(184, 164, 232, 0.08);
+            border-radius: 6px;
+            padding: 0 4px;
+            color: var(--text);
+            width: 100%;
+            min-height: 28px;
+            word-break: break-word;
+            cursor: text;
+        }
+        .item-edit a {
+            color: var(--link);
+            text-decoration: none;
+            border-bottom: 1px solid rgba(160, 126, 212, 0.3);
+            cursor: text;
+        }
+
+        /* Link popover */
+        .link-popover {
+            position: fixed;
+            z-index: 200;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(120, 100, 160, 0.15), 0 0 0 1px rgba(180, 160, 220, 0.12);
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: var(--font);
+            font-size: 13px;
+            animation: popIn 150ms var(--ease-bounce);
+        }
+        @keyframes popIn {
+            from { opacity: 0; transform: translateY(4px) scale(0.97); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .link-popover-url {
+            color: var(--link);
+            max-width: 240px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 12px;
+        }
+        .link-popover-url a {
+            color: var(--link);
+            text-decoration: none;
+        }
+        .link-popover-url a:hover { text-decoration: underline; }
+        .link-popover-divider {
+            width: 1px;
+            height: 16px;
+            background: rgba(180, 160, 220, 0.2);
+        }
+        .link-popover-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 6px;
+            font-family: var(--font);
+            font-size: 12px;
+            color: var(--text-secondary);
+            transition: all 150ms ease;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .link-popover-btn:hover {
+            background: rgba(184, 164, 232, 0.1);
+            color: var(--text);
+        }
+        .link-popover-btn.danger:hover {
+            background: rgba(240, 152, 152, 0.1);
+            color: var(--danger);
+        }
+        .link-popover-edit-input {
+            border: 1.5px solid rgba(184, 164, 232, 0.3);
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-family: var(--font);
+            font-size: 12px;
+            color: var(--text);
+            outline: none;
+            width: 220px;
+        }
+        .link-popover-edit-input:focus {
+            border-color: #b8a4e8;
+        }
+
+        .delete-btn {
+            flex-shrink: 0;
+            width: 24px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text-placeholder);
+            font-size: 16px;
+            opacity: 0;
+            transition: all 150ms ease;
+            border-radius: 4px;
+            border: none;
+            background: none;
+            font-family: var(--font);
+        }
+        .item:hover .delete-btn { opacity: 1; }
+        .delete-btn:hover { color: var(--danger); background: rgba(240, 152, 152, 0.1); }
+
+        /* Add item button */
+        .add-item-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 20px;
+            font-family: var(--font);
+            font-size: 13px;
+            color: var(--text-placeholder);
+            cursor: pointer;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            transition: color 200ms ease;
+            border-radius: 0 0 var(--radius) var(--radius);
+        }
+        .add-item-btn:hover { color: var(--link); background: rgba(184, 164, 232, 0.04); }
+
+        /* Add section button */
+        .add-section-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 14px;
+            font-family: var(--font);
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-placeholder);
+            cursor: pointer;
+            border: 2px dashed rgba(184, 164, 232, 0.25);
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: var(--radius);
+            width: 100%;
+            transition: all 200ms var(--ease-out);
+        }
+        .add-section-btn:hover {
+            color: var(--link);
+            border-color: rgba(184, 164, 232, 0.5);
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        /* Drop indicator */
+        .drop-indicator {
+            position: absolute;
+            left: 16px;
+            right: 16px;
+            height: 2px;
+            background: #b8a4e8;
+            border-radius: 1px;
+            pointer-events: none;
+            z-index: 50;
+            display: none;
+        }
+        .drop-indicator::before {
+            content: '';
+            position: absolute;
+            left: -3px;
+            top: -3px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #b8a4e8;
+        }
+        .drop-indicator.visible { display: block; }
+
+        /* Drag ghost */
+        .drag-ghost {
+            position: fixed;
+            pointer-events: none;
+            z-index: 1000;
+            opacity: 0.92;
+            transform: rotate(1.5deg) scale(1.02);
+            background: white;
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow-drag);
+            padding: 4px 12px;
+            max-width: 600px;
+            font-size: 14px;
+            line-height: 28px;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .section { animation: fadeIn 300ms var(--ease-out) both; }
+        .section:nth-child(2) { animation-delay: 50ms; }
+        .section:nth-child(3) { animation-delay: 100ms; }
+        .section:nth-child(4) { animation-delay: 150ms; }
+
+        @keyframes checkPop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+            100% { transform: scale(1); }
+        }
+        .checkbox.just-checked { animation: checkPop 300ms var(--ease-bounce); }
+
+        /* Completion sparkle */
+        .sparkle {
+            position: absolute;
+            pointer-events: none;
+            font-size: 24px;
+            animation: sparkleUp 1.4s var(--ease-out) forwards;
+        }
+        @keyframes sparkleUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            40% { opacity: 1; transform: translateY(-20px) scale(1.1); }
+            100% { opacity: 0; transform: translateY(-48px) scale(0.5); }
+        }
+
+        /* Item complete strikethrough animation */
+        .item-text.checking {
+            animation: strikeIn 300ms var(--ease-out) forwards;
+        }
+        @keyframes strikeIn {
+            0% { text-decoration-color: transparent; }
+            100% { text-decoration-color: currentColor; }
+        }
+
+        /* Smooth item appearance */
+        .item.just-added {
+            animation: slideIn 250ms var(--ease-out) both;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-8px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* Multi-select highlight */
+        .item.selected {
+            background: rgba(184, 164, 232, 0.12);
+        }
+
+        /* Keyboard shortcut hint */
+        .shortcut-hint {
+            position: fixed;
+            bottom: 16px;
+            right: 16px;
+            display: flex;
+            gap: 12px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            z-index: 50;
+        }
+        .shortcut-hint kbd {
+            background: rgba(184, 164, 232, 0.12);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-family: var(--font);
+            font-size: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+    <div class="drop-overlay" id="dropOverlay">Drop .md file here ✿</div>
+    <script>
+    // ============================================================
+    // STATE
+    // ============================================================
+    const SECTION_COLORS = [
+        { bg: '#eee8ff', accent: '#c4b4f0', text: '#7e68c2' },  // soft lavender
+        { bg: '#e8f4f8', accent: '#90cce0', text: '#4a8ea8' },  // sky blue
+        { bg: '#ebf8f0', accent: '#8cd4a8', text: '#4a9868' },  // mint
+        { bg: '#fff4e8', accent: '#f0cc90', text: '#b09050' },  // warm peach
+        { bg: '#f4e8ff', accent: '#cca4e8', text: '#9460b8' },  // lilac
+        { bg: '#e8f0ff', accent: '#a0b8f0', text: '#5878c0' },  // periwinkle
+    ];
+
+    const state = {
+        data: null,
+        fileHandle: null,
+        lastModified: 0,
+        editing: null,        // { sectionIndex, itemIndex }
+        editingHeader: null,  // sectionIndex
+        collapsed: new Set(),
+        pollTimer: null,
+        selected: new Set(),  // "si:ii" keys for multi-selected items
+    };
+
+    // ============================================================
+    // INDEXEDDB
+    // ============================================================
+    function openDB() {
+        return new Promise((resolve, reject) => {
+            const req = indexedDB.open('todo-editor', 1);
+            req.onupgradeneeded = () => req.result.createObjectStore('handles');
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
+    }
+
+    async function saveHandle(handle) {
+        const db = await openDB();
+        const tx = db.transaction('handles', 'readwrite');
+        tx.objectStore('handles').put(handle, 'file');
+        return new Promise(r => { tx.oncomplete = r; });
+    }
+
+    async function loadHandle() {
+        const db = await openDB();
+        const tx = db.transaction('handles', 'readonly');
+        const req = tx.objectStore('handles').get('file');
+        return new Promise(r => { req.onsuccess = () => r(req.result); });
+    }
+
+    // ============================================================
+    // MARKDOWN PARSER / SERIALIZER
+    // ============================================================
+    function parseMarkdown(text) {
+        const lines = text.split('\n');
+        const data = { preamble: [], sections: [] };
+        let currentSection = null;
+        let lastLineBlank = false;
+        let inPreamble = true;
+
+        for (const line of lines) {
+            const trimmed = line.trim();
+
+            if (trimmed.startsWith('## ')) {
+                inPreamble = false;
+                currentSection = { heading: trimmed.slice(3), items: [] };
+                data.sections.push(currentSection);
+                lastLineBlank = false;
+                continue;
+            }
+
+            if (trimmed === '') {
+                lastLineBlank = true;
+                continue;
+            }
+
+            if (inPreamble) {
+                data.preamble.push(line);
+                lastLineBlank = false;
+                continue;
+            }
+
+            const match = line.match(/^(\s*)- \[([ xX])\] (.*)$/);
+            if (match && currentSection) {
+                const spaces = match[1].replace(/\t/g, '    ').length;
+                const indent = Math.round(spaces / 4);
+                currentSection.items.push({
+                    checked: match[2] !== ' ',
+                    text: match[3],
+                    indent,
+                    blankBefore: lastLineBlank && currentSection.items.length > 0,
+                });
+            } else if (currentSection) {
+                // Non-checkbox line inside a section — treat as unchecked item
+                currentSection.items.push({
+                    checked: false,
+                    text: trimmed,
+                    indent: 0,
+                    blankBefore: lastLineBlank && currentSection.items.length > 0,
+                    raw: true,
+                });
+            }
+            lastLineBlank = false;
+        }
+        return data;
+    }
+
+    function serializeMarkdown(data) {
+        const lines = [];
+        for (const line of data.preamble) lines.push(line);
+        for (const section of data.sections) {
+            lines.push('');
+            lines.push(`## ${section.heading}`);
+            lines.push('');
+            for (const item of section.items) {
+                if (!item.text && !item.raw) continue; // skip empty items — never write them to file
+                if (item.blankBefore) lines.push('');
+                if (item.raw) {
+                    lines.push(item.text);
+                } else {
+                    const pad = '    '.repeat(item.indent);
+                    const check = item.checked ? 'x' : ' ';
+                    lines.push(`${pad}- [${check}] ${item.text}`);
+                }
+            }
+        }
+        lines.push('');
+        return lines.join('\n');
+    }
+
+    function mdInlineToHtml(text) {
+        let html = text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        html = html.replace(/\[(.*?)\]\((.*?)\)/g,
+            '<a href="$2" target="_blank" rel="noopener" onclick="event.stopPropagation()">$1</a>');
+        return html;
+    }
+
+    function htmlToMd(el) {
+        let md = '';
+        for (const node of el.childNodes) {
+            if (node.nodeType === Node.TEXT_NODE) {
+                md += node.textContent;
+            } else if (node.tagName === 'A') {
+                md += `[${node.textContent}](${node.getAttribute('href')})`;
+            } else if (node.tagName === 'STRONG' || node.tagName === 'B') {
+                md += `**${node.textContent}**`;
+            } else if (node.tagName === 'BR') {
+                // ignore
+            } else {
+                md += node.textContent;
+            }
+        }
+        return md;
+    }
+
+    function getEditValue(el) {
+        return htmlToMd(el);
+    }
+
+    function isCaretAtStart(el) {
+        const sel = window.getSelection();
+        if (!sel.rangeCount) return false;
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        range.setEnd(sel.getRangeAt(0).startContainer, sel.getRangeAt(0).startOffset);
+        return range.toString().length === 0;
+    }
+
+    function stripMdBold(text) {
+        return text.replace(/\*\*/g, '');
+    }
+
+    // ============================================================
+    // FILE I/O
+    // ============================================================
+    async function openFilePicker() {
+        try {
+            const [handle] = await window.showOpenFilePicker({
+                types: [{ description: 'Markdown', accept: { 'text/markdown': ['.md'] } }],
+            });
+            await loadFileHandle(handle);
+        } catch (e) {
+            if (e.name !== 'AbortError') console.error(e);
+        }
+    }
+
+    async function loadFileHandle(handle) {
+        state.fileHandle = handle;
+        await saveHandle(handle);
+        await readFile();
+        render();
+        startPolling();
+    }
+
+    async function readFile() {
+        if (!state.fileHandle) return;
+        try {
+            const perm = await state.fileHandle.queryPermission({ mode: 'readwrite' });
+            if (perm !== 'granted') {
+                const req = await state.fileHandle.requestPermission({ mode: 'readwrite' });
+                if (req !== 'granted') return;
+            }
+            const file = await state.fileHandle.getFile();
+            const text = await file.text();
+            state.data = parseMarkdown(text);
+            state.lastModified = file.lastModified;
+            setSyncStatus('synced');
+        } catch (e) {
+            console.error('Read error:', e);
+            setSyncStatus('error');
+        }
+    }
+
+    let writing = false;
+    async function writeFile() {
+        if (!state.fileHandle || !state.data) return;
+        writing = true;
+        try {
+            setSyncStatus('saving');
+            const writable = await state.fileHandle.createWritable();
+            await writable.write(serializeMarkdown(state.data));
+            await writable.close();
+            const file = await state.fileHandle.getFile();
+            state.lastModified = file.lastModified;
+            setSyncStatus('synced');
+        } catch (e) {
+            console.error('Write error:', e);
+            setSyncStatus('error');
+        }
+        writing = false;
+    }
+
+    function startPolling() {
+        if (state.pollTimer) clearInterval(state.pollTimer);
+        state.pollTimer = setInterval(async () => {
+            if (!state.fileHandle || state.editing || writing) return;
+            try {
+                const file = await state.fileHandle.getFile();
+                if (file.lastModified > state.lastModified) {
+                    setSyncStatus('external');
+                    const text = await file.text();
+                    state.data = parseMarkdown(text);
+                    state.lastModified = file.lastModified;
+                    render();
+                    setTimeout(() => setSyncStatus('synced'), 800);
+                }
+            } catch (e) { /* file may be temporarily locked */ }
+        }, 1200);
+    }
+
+    function setSyncStatus(status) {
+        const dot = document.querySelector('.sync-dot');
+        const label = document.querySelector('.sync-label');
+        if (!dot || !label) return;
+        dot.className = 'sync-dot' + (status !== 'synced' ? ' ' + status : '');
+        const labels = { synced: 'Synced', saving: 'Saving...', external: 'Updating...', error: 'Error' };
+        label.textContent = labels[status] || '';
+    }
+
+    // ============================================================
+    // RENDER
+    // ============================================================
+    const app = document.getElementById('app');
+
+    function render() {
+        if (!state.data) {
+            renderLanding();
+        } else {
+            renderApp();
+        }
+    }
+
+    function renderLanding() {
+        app.innerHTML = `
+            <div class="landing">
+                <div class="landing-icon">📝</div>
+                <h1>Todo Editor</h1>
+                <p>Open your todo.md to get started</p>
+                <button class="open-btn" id="openBtn">Open File</button>
+                <p class="hint">or drag & drop a .md file here</p>
+                <p class="hint">Tip: press <kbd>⌘ ⇧ .</kbd> to show hidden files</p>
+            </div>
+        `;
+        document.getElementById('openBtn').onclick = openFilePicker;
+    }
+
+    function renderApp() {
+        const d = state.data;
+        let html = `
+            <div class="header">
+                <div class="header-left">
+                    <span class="header-title">Todo ✿</span>
+                    <span class="header-file">${state.fileHandle?.name || 'todo.md'}</span>
+                </div>
+                <div class="header-actions">
+                    <div class="sync-badge">
+                        <span class="sync-dot"></span>
+                        <span class="sync-label">Synced</span>
+                    </div>
+                    <button class="header-btn" onclick="openFilePicker()">Open Other</button>
+                </div>
+            </div>
+            <div class="main">
+        `;
+
+        // Banner (preamble)
+        if (d.preamble.length > 0) {
+            const bannerText = d.preamble.map(l => mdInlineToHtml(stripMdBold(l))).join('<br>');
+            html += `<div class="banner">${bannerText}</div>`;
+        }
+
+        // Sections
+        for (let si = 0; si < d.sections.length; si++) {
+            html += renderSection(d.sections[si], si);
+        }
+
+        // Add section button
+        html += `<button class="add-section-btn" onclick="addSection()">+ New Section</button>`;
+        html += `</div>`;
+        html += `<div class="shortcut-hint">
+            <span><kbd>Tab</kbd> indent</span>
+            <span><kbd>⇧Tab</kbd> outdent</span>
+            <span><kbd>Enter</kbd> new item</span>
+            <span><kbd>⌘Z</kbd> undo</span>
+        </div>`;
+        // Neutralize active edit blur handlers before destroying DOM
+        const activeEdit = app.querySelector('.item-edit[onblur]');
+        if (activeEdit) activeEdit.removeAttribute('onblur');
+        app.innerHTML = html;
+
+        // Restore focus to editing item
+        if (state.editing) {
+            const input = document.querySelector(`.item[data-section="${state.editing.sectionIndex}"][data-index="${state.editing.itemIndex}"] .item-edit`);
+            if (input) input.focus();
+        }
+    }
+
+    function renderSection(section, si) {
+        const color = SECTION_COLORS[si % SECTION_COLORS.length];
+        const isCollapsed = state.collapsed.has(si);
+        let html = `<div class="section" data-section="${si}">`;
+        html += `<div class="section-header" style="background:${color.bg}; color:${color.text}">`;
+
+        if (state.editingHeader === si) {
+            html += `<input class="section-header-edit" value="${escAttr(section.heading)}"
+                onblur="saveHeaderEdit(${si}, this.value)"
+                onkeydown="if(event.key==='Enter'){this.blur()}if(event.key==='Escape'){cancelHeaderEdit(${si})}"
+                style="color:${color.text}" autofocus>`;
+        } else {
+            html += `<span class="section-header-text" onclick="startHeaderEdit(${si})">${escHtml(section.heading)}</span>`;
+        }
+
+        html += `<button class="section-collapse-btn" onclick="toggleCollapse(${si})">${isCollapsed ? '▸' : '▾'}</button>`;
+        html += `</div>`;
+
+        html += `<div class="section-items${isCollapsed ? ' collapsed' : ''}" data-section-items="${si}">`;
+        html += `<div style="position:relative">`;
+
+        for (let ii = 0; ii < section.items.length; ii++) {
+            html += renderItem(section.items[ii], si, ii);
+        }
+
+        // Drop indicator (one per section)
+        html += `<div class="drop-indicator" data-indicator="${si}"></div>`;
+        html += `</div>`;
+
+        html += `<button class="add-item-btn" onclick="addItemAtEnd(${si})">+ Add item</button>`;
+        html += `</div></div>`;
+        return html;
+    }
+
+    function renderItem(item, si, ii) {
+        const indentPx = item.indent * 28;
+        const isEditing = state.editing?.sectionIndex === si && state.editing?.itemIndex === ii;
+        const blankClass = item.blankBefore ? ' blank-before' : '';
+        const selClass = state.selected.has(`${si}:${ii}`) ? ' selected' : '';
+
+        let html = `<div class="item${blankClass}${selClass}" data-section="${si}" data-index="${ii}" style="padding-left:${12 + indentPx}px" onclick="itemClick(event, ${si}, ${ii})">`;
+
+        // Drag handle
+        html += `<div class="drag-handle" onpointerdown="dragStart(event, ${si}, ${ii})">⠿</div>`;
+
+        // Checkbox
+        const checkSvg = `<svg viewBox="0 0 12 12" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2.5 6 5 8.5 9.5 3.5"/></svg>`;
+        html += `<div class="checkbox-wrapper"><div class="checkbox${item.checked ? ' checked' : ''}" onclick="toggleCheck(${si}, ${ii})">${checkSvg}</div></div>`;
+
+        // Content
+        html += `<div class="item-content">`;
+        if (isEditing) {
+            html += `<div class="item-edit" contenteditable="true"
+                onblur="saveEdit(${si}, ${ii}, getEditValue(this))"
+                onkeydown="editKeydown(event, ${si}, ${ii}, this)"
+                >${mdInlineToHtml(item.text)}</div>`;
+        } else {
+            html += `<div class="item-text${item.checked ? ' checked' : ''}" onclick="startEdit(${si}, ${ii})">${mdInlineToHtml(item.text)}</div>`;
+        }
+        html += `</div>`;
+
+        // Delete button (mousedown + preventDefault to avoid blur race with editing)
+        html += `<button class="delete-btn" onmousedown="event.preventDefault(); deleteItem(${si}, ${ii})" title="Delete">×</button>`;
+        html += `</div>`;
+        return html;
+    }
+
+    function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function escAttr(s) { return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    // ============================================================
+    // UNDO
+    // ============================================================
+    const undoStack = [];
+    const redoStack = [];
+    const UNDO_LIMIT = 50;
+
+    function pushUndo() {
+        undoStack.push(JSON.stringify(state.data));
+        if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+        redoStack.length = 0;
+    }
+    function undo() {
+        if (!undoStack.length) return;
+        redoStack.push(JSON.stringify(state.data));
+        state.data = JSON.parse(undoStack.pop());
+        state.editing = null;
+        render();
+        writeFile();
+    }
+    function redo() {
+        if (!redoStack.length) return;
+        undoStack.push(JSON.stringify(state.data));
+        state.data = JSON.parse(redoStack.pop());
+        state.editing = null;
+        render();
+        writeFile();
+    }
+
+    // Re-render just one section's items (avoids full-page flash)
+    function rerenderSection(si) {
+        const section = state.data.sections[si];
+        const wrapper = document.querySelector(`[data-section-items="${si}"] > div`);
+        if (!wrapper) { render(); return; }
+        // Neutralize any active onblur before destroying DOM to prevent stale saves/deletes
+        const activeEdit = wrapper.querySelector('.item-edit[onblur]');
+        if (activeEdit) activeEdit.removeAttribute('onblur');
+        let html = '';
+        for (let ii = 0; ii < section.items.length; ii++) {
+            html += renderItem(section.items[ii], si, ii);
+        }
+        html += `<div class="drop-indicator" data-indicator="${si}"></div>`;
+        wrapper.innerHTML = html;
+        if (state.editing?.sectionIndex === si) {
+            const input = wrapper.querySelector(`.item[data-index="${state.editing.itemIndex}"] .item-edit`);
+            if (input) {
+                input.focus();
+                const sel = window.getSelection();
+                sel.selectAllChildren(input);
+                sel.collapseToEnd();
+            }
+        }
+    }
+
+    // ============================================================
+    // ITEM OPERATIONS
+    // ============================================================
+    function toggleCheck(si, ii) {
+        // Neutralize any active edit to prevent stale blur from corrupting data
+        if (state.editing) {
+            const activeEdit = document.querySelector('.item-edit[onblur]');
+            if (activeEdit) activeEdit.removeAttribute('onblur');
+            // Save the current edit text before clearing
+            const editEl = document.querySelector('.item-edit');
+            if (editEl) {
+                const editSi = state.editing.sectionIndex;
+                const editIi = state.editing.itemIndex;
+                const editText = getEditValue(editEl).trim();
+                if (editText && state.data.sections[editSi]?.items[editIi]) {
+                    state.data.sections[editSi].items[editIi].text = editText;
+                }
+            }
+            state.editing = null;
+        }
+        pushUndo();
+        const item = state.data.sections[si].items[ii];
+        item.checked = !item.checked;
+        const itemEl = document.querySelector(`.item[data-section="${si}"][data-index="${ii}"]`);
+        if (itemEl) {
+            const cb = itemEl.querySelector('.checkbox');
+            const txt = itemEl.querySelector('.item-text');
+            if (cb) {
+                cb.classList.toggle('checked');
+                cb.classList.add('just-checked');
+                setTimeout(() => cb.classList.remove('just-checked'), 350);
+            }
+            if (txt) txt.classList.toggle('checked');
+            // Sparkle on check
+            if (item.checked) {
+                const sparkles = ['✨', '⭐', '💫', '🌸', '🎀', '💖', '🦋', '🍡', '🧁', '🌈', '💐', '🎉', '🪷', '🫧', '☁️', '🍓', '🌷', '💝', '🎊', '✿'];
+                const wrapper = itemEl.querySelector('.checkbox-wrapper');
+                const rect = wrapper.getBoundingClientRect();
+                const parentRect = itemEl.getBoundingClientRect();
+                for (let s = 0; s < 3; s++) {
+                    const sparkle = document.createElement('span');
+                    sparkle.className = 'sparkle';
+                    sparkle.textContent = sparkles[Math.floor(Math.random() * sparkles.length)];
+                    sparkle.style.left = (rect.left - parentRect.left + Math.random() * 20 - 5) + 'px';
+                    sparkle.style.top = (rect.top - parentRect.top - 2) + 'px';
+                    sparkle.style.animationDelay = (s * 150) + 'ms';
+                    itemEl.appendChild(sparkle);
+                    setTimeout(() => sparkle.remove(), 1800);
+                }
+            }
+        }
+        writeFile();
+    }
+
+
+    function startEdit(si, ii) {
+        state.selected.clear();
+        // Save previous edit if any (blur won't fire since we're manipulating DOM)
+        if (state.editing) {
+            const prev = state.editing;
+            const prevInput = document.querySelector(`.item[data-section="${prev.sectionIndex}"][data-index="${prev.itemIndex}"] .item-edit`);
+            if (prevInput) {
+                const prevSection = state.data.sections[prev.sectionIndex];
+                const prevItem = prevSection?.items[prev.itemIndex];
+                if (prevItem) {
+                    const prevText = getEditValue(prevInput).trim();
+                    if (prevText === '') {
+                        prevSection.items.splice(prev.itemIndex, 1);
+                        state.editing = null;
+                        render(); // Structural change needs full render
+                        // Re-call startEdit with possibly adjusted index
+                        const adjIi = (prev.sectionIndex === si && prev.itemIndex < ii) ? ii - 1 : ii;
+                        startEdit(si, adjIi);
+                        writeFile();
+                        return;
+                    }
+                    prevItem.text = prevText;
+                    // Swap previous input back to text
+                    const prevContent = prevInput.closest('.item-content');
+                    if (prevContent) {
+                        prevContent.innerHTML = `<div class="item-text${prevItem.checked ? ' checked' : ''}" onclick="startEdit(${prev.sectionIndex}, ${prev.itemIndex})">${mdInlineToHtml(prevItem.text)}</div>`;
+                    }
+                }
+            }
+        }
+
+        state.editing = { sectionIndex: si, itemIndex: ii };
+        // Targeted: swap text div for input
+        const itemEl = document.querySelector(`.item[data-section="${si}"][data-index="${ii}"]`);
+        if (itemEl) {
+            const content = itemEl.querySelector('.item-content');
+            const item = state.data.sections[si].items[ii];
+            if (content && item) {
+                content.innerHTML = `<div class="item-edit" contenteditable="true"
+                    onblur="saveEdit(${si}, ${ii}, getEditValue(this))"
+                    onkeydown="editKeydown(event, ${si}, ${ii}, this)">${mdInlineToHtml(item.text)}</div>`;
+                const inp = content.querySelector('.item-edit');
+                if (inp) {
+                    inp.focus();
+                    // Place cursor at end
+                    const sel = window.getSelection();
+                    sel.selectAllChildren(inp);
+                    sel.collapseToEnd();
+                }
+            }
+        } else {
+            render();
+        }
+    }
+
+    function saveEdit(si, ii, value, fromKeyboard) {
+        if (popoverLocked) return;
+        const section = state.data.sections[si];
+        if (!section || !section.items[ii]) return;
+        const isCurrent = state.editing?.sectionIndex === si && state.editing?.itemIndex === ii;
+        if (!isCurrent) return; // Skip stale blur events from destroyed inputs
+        const text = value.trim();
+        if (text === '') {
+            if (!fromKeyboard) {
+                // Blur on empty — just stop editing, don't delete (prevents accidental data loss)
+                state.editing = null;
+                rerenderSection(si);
+                return;
+            }
+            pushUndo();
+            section.items.splice(ii, 1);
+            state.editing = null;
+            rerenderSection(si);
+            writeFile();
+            return;
+        }
+        pushUndo();
+        section.items[ii].text = text;
+        state.editing = null;
+        // Targeted: swap input back to text div
+        const itemEl = document.querySelector(`.item[data-section="${si}"][data-index="${ii}"]`);
+        if (itemEl) {
+            const content = itemEl.querySelector('.item-content');
+            const item = section.items[ii];
+            if (content && item) {
+                content.innerHTML = `<div class="item-text${item.checked ? ' checked' : ''}" onclick="startEdit(${si}, ${ii})">${mdInlineToHtml(item.text)}</div>`;
+            }
+        }
+        writeFile();
+    }
+
+    // Find the <a> ancestor of the current cursor position, if any
+    function findAnchorAtCursor() {
+        const sel = window.getSelection();
+        if (!sel.rangeCount) return null;
+        let node = sel.anchorNode;
+        while (node) {
+            if (node.tagName === 'A') return node;
+            if (node.classList?.contains('item-edit')) return null;
+            node = node.parentNode;
+        }
+        return null;
+    }
+
+    // Backspace/Delete inside a link: unlink first (keep text, remove link), then normal delete on next press
+    document.addEventListener('keydown', e => {
+        if (e.key !== 'Backspace' && e.key !== 'Delete') return;
+        const edit = document.activeElement?.closest?.('.item-edit');
+        if (!edit) return;
+        // If text is selected, let the browser handle deletion normally
+        const sel = window.getSelection();
+        if (!sel.isCollapsed) return;
+        const anchor = findAnchorAtCursor();
+        if (!anchor) return;
+
+        // Unlink: replace <a> with its text content, preserve cursor position
+        e.preventDefault();
+        const range = sel.getRangeAt(0);
+        const cursorOffset = range.startOffset;
+        const textNode = document.createTextNode(anchor.textContent);
+        anchor.parentNode.replaceChild(textNode, anchor);
+        // Restore cursor
+        try {
+            const newRange = document.createRange();
+            newRange.setStart(textNode, Math.min(cursorOffset, textNode.length));
+            newRange.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(newRange);
+        } catch(err) {}
+    }, true); // capture phase so it fires before editKeydown
+
+    // Link popover
+    let activePopover = null;
+    let popoverAnchor = null;
+    let popoverLocked = false; // true when editing URL — prevents selectionchange from hiding
+
+    function showLinkPopover(anchor) {
+        hideLinkPopover();
+        popoverAnchor = anchor;
+        const rect = anchor.getBoundingClientRect();
+        const pop = document.createElement('div');
+        pop.className = 'link-popover';
+        pop.innerHTML = `
+            <span class="link-popover-url"><a href="${anchor.href}" target="_blank" rel="noopener">${anchor.href}</a></span>
+            <span class="link-popover-divider"></span>
+            <button class="link-popover-btn" data-action="edit">Edit</button>
+            <button class="link-popover-btn danger" data-action="remove">Remove</button>
+        `;
+        pop.style.left = rect.left + 'px';
+        pop.style.top = (rect.bottom + 6) + 'px';
+        document.body.appendChild(pop);
+
+        // Keep popover in viewport
+        const popRect = pop.getBoundingClientRect();
+        if (popRect.right > window.innerWidth - 8) {
+            pop.style.left = (window.innerWidth - popRect.width - 8) + 'px';
+        }
+
+        activePopover = pop;
+
+        // Prevent popover from stealing focus/blurring the edit
+        pop.addEventListener('mousedown', e => {
+            e.preventDefault();
+            const btn = e.target.closest('[data-action]');
+            if (!btn) return;
+            if (btn.dataset.action === 'edit') showLinkEditMode(pop, anchor);
+            if (btn.dataset.action === 'remove') { unlinkAnchor(anchor); hideLinkPopover(); }
+        });
+    }
+
+    function showLinkEditMode(pop, anchor) {
+        popoverLocked = true;
+        pop.innerHTML = `
+            <input class="link-popover-edit-input" value="${anchor.href}" placeholder="URL">
+            <button class="link-popover-btn" data-action="save">Save</button>
+        `;
+        const input = pop.querySelector('input');
+        setTimeout(() => { input.focus(); input.select(); }, 0);
+
+        const save = () => {
+            const newUrl = input.value.trim();
+            if (newUrl) {
+                anchor.href = newUrl;
+            } else {
+                unlinkAnchor(anchor);
+            }
+            hideLinkPopover(true);
+        };
+
+        input.addEventListener('keydown', e => {
+            e.stopPropagation(); // Prevent global keydown handlers
+            if (e.key === 'Enter') { e.preventDefault(); save(); }
+            if (e.key === 'Escape') { e.preventDefault(); hideLinkPopover(true); }
+        });
+        input.addEventListener('paste', e => e.stopPropagation());
+        input.addEventListener('copy', e => e.stopPropagation());
+        input.addEventListener('cut', e => e.stopPropagation());
+        pop.addEventListener('mousedown', e => {
+            // Let the input work normally (focus, select, paste)
+            if (e.target === input) return;
+            e.preventDefault();
+            const btn = e.target.closest('[data-action]');
+            if (btn?.dataset.action === 'save') save();
+        });
+    }
+
+    function unlinkAnchor(anchor) {
+        const text = document.createTextNode(anchor.textContent);
+        anchor.parentNode.replaceChild(text, anchor);
+    }
+
+    function hideLinkPopover(force) {
+        if (popoverLocked && !force) return;
+        popoverLocked = false;
+        if (activePopover) {
+            activePopover.remove();
+            activePopover = null;
+        }
+        popoverAnchor = null;
+    }
+
+    // Show popover when cursor enters a link in edit mode
+    let popoverHideTimer = null;
+    document.addEventListener('selectionchange', () => {
+        clearTimeout(popoverHideTimer);
+        const edit = document.activeElement?.closest?.('.item-edit');
+        if (!edit) { hideLinkPopover(); return; }  // hideLinkPopover respects popoverLocked
+        const anchor = findAnchorAtCursor();
+        if (anchor && anchor !== popoverAnchor) {
+            showLinkPopover(anchor);
+        } else if (!anchor && activePopover) {
+            // Delay hide so button clicks can fire first
+            popoverHideTimer = setTimeout(() => {
+                // Only hide if popover doesn't have focus
+                if (!activePopover?.contains(document.activeElement)) {
+                    hideLinkPopover();
+                }
+            }, 200);
+        }
+    });
+
+    // Hide popover on scroll
+    document.addEventListener('scroll', hideLinkPopover, true);
+
+    document.addEventListener('paste', e => {
+        // Don't intercept paste in the link popover URL input
+        if (e.target.closest('.link-popover')) return;
+        const input = e.target.closest('.item-edit');
+        if (!input) return;
+
+        const pasted = (e.clipboardData || window.clipboardData).getData('text');
+        if (!pasted) return;
+        const url = pasted.trim();
+        const isUrl = /^https?:\/\/[^\s]+$/.test(url);
+        if (!isUrl) return;
+
+        e.preventDefault();
+        const sel = window.getSelection();
+        if (!sel.rangeCount) return;
+        const range = sel.getRangeAt(0);
+
+        if (!range.collapsed) {
+            // Text selected — wrap as link
+            const selectedText = range.toString();
+            range.deleteContents();
+            const a = document.createElement('a');
+            a.href = url;
+            a.textContent = selectedText;
+            a.setAttribute('target', '_blank');
+            range.insertNode(a);
+            sel.collapseToEnd();
+        } else {
+            // No selection — insert link
+            const a = document.createElement('a');
+            a.href = url;
+            a.textContent = url;
+            a.setAttribute('target', '_blank');
+            range.insertNode(a);
+            sel.collapseToEnd();
+        }
+    });
+
+    function editVal(input) { return getEditValue(input).trim(); }
+
+    function closeEdit(input, si, ii) {
+        const item = state.data.sections[si].items[ii];
+        const content = input.closest('.item-content');
+        if (content && item) {
+            content.innerHTML = `<div class="item-text${item.checked ? ' checked' : ''}" onclick="startEdit(${si}, ${ii})">${mdInlineToHtml(item.text)}</div>`;
+        }
+    }
+
+    function editKeydown(e, si, ii, input) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            input.removeAttribute('onblur');
+            const text = editVal(input);
+            if (text === '') {
+                const item = state.data.sections[si].items[ii];
+                if (item.indent > 0) {
+                    // Outdent empty indented item instead of deleting
+                    pushUndo();
+                    item.indent--;
+                    const itemEl = input.closest('.item');
+                    if (itemEl) itemEl.style.paddingLeft = (12 + item.indent * 28) + 'px';
+                    writeFile();
+                    return;
+                }
+                saveEdit(si, ii, '', true);
+                return;
+            }
+            pushUndo();
+            state.data.sections[si].items[ii].text = text;
+            const currentItem = state.data.sections[si].items[ii];
+            const atStart = isCaretAtStart(input);
+            let newIndex;
+            if (atStart) {
+                newIndex = ii;
+                state.data.sections[si].items.splice(ii, 0, { checked: false, text: '', indent: currentItem.indent, blankBefore: false });
+            } else {
+                const childCount = getChildCount(si, ii);
+                newIndex = ii + childCount + 1;
+                state.data.sections[si].items.splice(newIndex, 0, { checked: false, text: '', indent: currentItem.indent, blankBefore: false });
+            }
+            state.editing = { sectionIndex: si, itemIndex: newIndex };
+            rerenderSection(si);
+            writeFile();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            state.editing = null;
+            closeEdit(input, si, ii);
+        } else if (e.key === 'Tab') {
+            e.preventDefault();
+            pushUndo();
+            const item = state.data.sections[si].items[ii];
+            const tabText = editVal(input);
+            if (tabText) item.text = tabText; // never overwrite with empty
+            if (e.shiftKey) {
+                if (item.indent > 0) item.indent--;
+            } else {
+                if (ii > 0) item.indent = Math.min(item.indent + 1, state.data.sections[si].items[ii - 1].indent + 1);
+            }
+            const itemEl = input.closest('.item');
+            if (itemEl) itemEl.style.paddingLeft = (12 + item.indent * 28) + 'px';
+            writeFile();
+        } else if (e.key === 'Backspace' && isCaretAtStart(input) && window.getSelection().isCollapsed) {
+            const item = state.data.sections[si].items[ii];
+            if (item.indent > 0) {
+                e.preventDefault();
+                pushUndo();
+                item.indent--;
+                const itemEl = input.closest('.item');
+                if (itemEl) itemEl.style.paddingLeft = (12 + item.indent * 28) + 'px';
+                writeFile();
+            } else if (input.textContent.trim() === '') {
+                e.preventDefault();
+                input.removeAttribute('onblur');
+                deleteItem(si, ii);
+            }
+        } else if (e.key === 'ArrowUp' && !e.shiftKey) {
+            e.preventDefault();
+            const val = editVal(input);
+            if (val) state.data.sections[si].items[ii].text = val;
+            let targetSi = si, targetIi = ii - 1;
+            if (ii <= 0 && si > 0) {
+                targetSi = si - 1;
+                targetIi = state.data.sections[targetSi].items.length - 1;
+            }
+            if (targetIi >= 0) {
+                state.editing = null;
+                closeEdit(input, si, ii);
+                startEdit(targetSi, targetIi);
+            }
+        } else if (e.key === 'ArrowDown' && !e.shiftKey) {
+            e.preventDefault();
+            const val = editVal(input);
+            if (val) state.data.sections[si].items[ii].text = val;
+            const section = state.data.sections[si];
+            let targetSi = si, targetIi = ii + 1;
+            if (ii >= section.items.length - 1) {
+                if (si < state.data.sections.length - 1) { targetSi = si + 1; targetIi = 0; }
+                else return;
+            }
+            if (state.data.sections[targetSi]?.items[targetIi]) {
+                state.editing = null;
+                closeEdit(input, si, ii);
+                startEdit(targetSi, targetIi);
+            }
+        }
+    }
+
+    function deleteItem(si, ii) {
+        // Save any active edit before modifying data — prevents losing unsaved text
+        let wasEditingSelf = false;
+        if (state.editing) {
+            const editSi = state.editing.sectionIndex;
+            const editIi = state.editing.itemIndex;
+            wasEditingSelf = (editSi === si && editIi === ii);
+            if (!wasEditingSelf) {
+                const editEl = document.querySelector(`.item[data-section="${editSi}"][data-index="${editIi}"] .item-edit`);
+                if (editEl) {
+                    editEl.removeAttribute('onblur');
+                    const editText = getEditValue(editEl).trim();
+                    if (editText && state.data.sections[editSi]?.items[editIi]) {
+                        state.data.sections[editSi].items[editIi].text = editText;
+                    }
+                }
+            }
+        }
+        pushUndo();
+        const section = state.data.sections[si];
+        const count = 1 + getChildCount(si, ii);
+        section.items.splice(ii, count);
+
+        if (wasEditingSelf || !state.editing) {
+            // Deleted the item we were editing, or wasn't editing — don't auto-edit neighbor
+            state.editing = null;
+        } else {
+            // Was editing a different item — keep editing it with adjusted index
+            const editSi = state.editing.sectionIndex;
+            const editIi = state.editing.itemIndex;
+            if (editSi === si && editIi > ii) {
+                state.editing = { sectionIndex: si, itemIndex: editIi - count };
+            }
+        }
+        rerenderSection(si);
+        writeFile();
+    }
+
+    function itemClick(e, si, ii) {
+        // If clicking text or checkbox or delete, let those handlers handle it
+        const tag = e.target.tagName;
+        const cls = e.target.className || '';
+        if (cls.includes('item-text') || cls.includes('item-edit') || cls.includes('checkbox') ||
+            cls.includes('delete-btn') || cls.includes('drag-handle') || tag === 'A' || tag === 'SVG' ||
+            tag === 'POLYLINE' || tag === 'TEXTAREA') return;
+
+        // Cmd/Ctrl+click toggles selection
+        if (e.metaKey || e.ctrlKey) {
+            e.preventDefault();
+            const key = `${si}:${ii}`;
+            if (state.selected.has(key)) state.selected.delete(key);
+            else state.selected.add(key);
+            const itemEl = e.currentTarget;
+            itemEl.classList.toggle('selected');
+            return;
+        }
+
+        // Plain click on empty area — clear selection, start edit
+        if (state.selected.size > 0) {
+            state.selected.clear();
+            rerenderSection(si);
+        }
+    }
+
+    function deleteSelected() {
+        if (state.selected.size === 0) return;
+        pushUndo();
+        // Group by section, delete in reverse order to preserve indices
+        const bySection = {};
+        for (const key of state.selected) {
+            const [si, ii] = key.split(':').map(Number);
+            if (!bySection[si]) bySection[si] = [];
+            bySection[si].push(ii);
+        }
+        const affectedSections = new Set();
+        for (const si in bySection) {
+            const indices = bySection[si].sort((a, b) => b - a); // reverse order
+            const section = state.data.sections[si];
+            for (const ii of indices) {
+                if (section.items[ii]) {
+                    const count = 1 + getChildCount(parseInt(si), ii);
+                    section.items.splice(ii, count);
+                }
+            }
+            affectedSections.add(parseInt(si));
+        }
+        state.selected.clear();
+        state.editing = null;
+        for (const si of affectedSections) rerenderSection(si);
+        writeFile();
+    }
+
+    function addItemAtEnd(si) {
+        pushUndo();
+        const section = state.data.sections[si];
+        section.items.push({ checked: false, text: '', indent: 0, blankBefore: false });
+        state.collapsed.delete(si);
+        state.editing = { sectionIndex: si, itemIndex: section.items.length - 1 };
+        rerenderSection(si);
+        // Scroll new item into view
+        const input = document.querySelector(`.item[data-section="${si}"][data-index="${section.items.length - 1}"] .item-edit`);
+        if (input) { input.focus(); input.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+    }
+
+    function getChildCount(si, startIndex) {
+        const items = state.data.sections[si].items;
+        const parentIndent = items[startIndex].indent;
+        let count = 0;
+        for (let i = startIndex + 1; i < items.length; i++) {
+            if (items[i].indent > parentIndent) count++;
+            else break;
+        }
+        return count;
+    }
+
+    // ============================================================
+    // SECTION OPERATIONS
+    // ============================================================
+    function toggleCollapse(si) {
+        if (state.collapsed.has(si)) state.collapsed.delete(si);
+        else state.collapsed.add(si);
+        // Targeted: toggle visibility + button text
+        const items = document.querySelector(`[data-section-items="${si}"]`);
+        const btn = document.querySelector(`.section[data-section="${si}"] .section-collapse-btn`);
+        if (items) items.classList.toggle('collapsed');
+        if (btn) btn.textContent = state.collapsed.has(si) ? '▸' : '▾';
+    }
+
+    function startHeaderEdit(si) {
+        state.editingHeader = si;
+        render();
+        const input = document.querySelector(`.section[data-section="${si}"] .section-header-edit`);
+        if (input) { input.focus(); input.select(); }
+    }
+
+    function saveHeaderEdit(si, value) {
+        pushUndo();
+        const text = value.trim();
+        if (text) state.data.sections[si].heading = text;
+        state.editingHeader = null;
+        render();
+        writeFile();
+    }
+
+    function cancelHeaderEdit(si) {
+        state.editingHeader = null;
+        render();
+    }
+
+    function addSection() {
+        pushUndo();
+        state.data.sections.push({ heading: '✨ New Section', items: [] });
+        const newSi = state.data.sections.length - 1;
+        render();
+        startHeaderEdit(newSi);
+        writeFile();
+    }
+
+    // ============================================================
+    // DRAG AND DROP (ITEMS)
+    // ============================================================
+    let drag = null;
+
+    function dragStart(e, si, ii) {
+        e.preventDefault();
+        // Cancel any active editing
+        if (state.editing) {
+            const sec = state.data.sections[state.editing.sectionIndex];
+            const input = document.querySelector(`.item[data-section="${state.editing.sectionIndex}"][data-index="${state.editing.itemIndex}"] .item-edit`);
+            if (input && sec?.items[state.editing.itemIndex]) {
+                sec.items[state.editing.itemIndex].text = (input.textContent || '').trim() || sec.items[state.editing.itemIndex].text;
+            }
+            state.editing = null;
+        }
+        pushUndo();
+        const item = state.data.sections[si].items[ii];
+        const childCount = getChildCount(si, ii);
+        const count = 1 + childCount;
+
+        // Create ghost
+        const itemEl = document.querySelector(`.item[data-section="${si}"][data-index="${ii}"]`);
+        const ghost = document.createElement('div');
+        ghost.className = 'drag-ghost';
+        let ghostText = item.text || '(empty)';
+        if (childCount > 0) ghostText += ` (+${childCount})`;
+        ghost.innerHTML = mdInlineToHtml(ghostText);
+        document.body.appendChild(ghost);
+
+        const rect = itemEl.getBoundingClientRect();
+        drag = {
+            si, ii, count,
+            items: state.data.sections[si].items.splice(ii, count),
+            ghost,
+            offsetX: e.clientX - rect.left,
+            offsetY: e.clientY - rect.top,
+            lastTarget: null,
+        };
+
+        // Mark as dragging
+        ghost.style.left = (e.clientX - drag.offsetX) + 'px';
+        ghost.style.top = (e.clientY - drag.offsetY) + 'px';
+
+        render();
+
+        document.addEventListener('pointermove', dragMove);
+        document.addEventListener('pointerup', dragEnd);
+    }
+
+    function dragMove(e) {
+        if (!drag) return;
+        drag.ghost.style.left = (e.clientX - drag.offsetX) + 'px';
+        drag.ghost.style.top = (e.clientY - drag.offsetY) + 'px';
+
+        // Find drop target
+        const target = findDropTarget(e.clientY);
+        showDropIndicator(target);
+        drag.lastTarget = target;
+    }
+
+    function dragEnd(e) {
+        if (!drag) return;
+        document.removeEventListener('pointermove', dragMove);
+        document.removeEventListener('pointerup', dragEnd);
+
+        // Insert items at target
+        const target = drag.lastTarget;
+        if (target) {
+            const section = state.data.sections[target.si];
+            // Match indent to drop position neighbors
+            let targetIndent = 0;
+            if (target.ii > 0) {
+                // Match the item above
+                targetIndent = section.items[target.ii - 1].indent;
+                // If item below exists and is more indented (we're dropping into a parent's children), match below
+                const itemBelow = section.items[target.ii];
+                if (itemBelow && itemBelow.indent > targetIndent) {
+                    targetIndent = itemBelow.indent;
+                }
+            } else if (section.items.length > 0) {
+                // Dropping at top — match first item
+                targetIndent = section.items[0].indent;
+            }
+            // Shift all dragged items by the delta
+            const indentDelta = targetIndent - drag.items[0].indent;
+            if (indentDelta !== 0) {
+                for (const item of drag.items) {
+                    item.indent = Math.max(0, item.indent + indentDelta);
+                }
+            }
+            section.items.splice(target.ii, 0, ...drag.items);
+        } else {
+            // Return to original position
+            state.data.sections[drag.si].items.splice(drag.ii, 0, ...drag.items);
+        }
+
+        // Clean up
+        drag.ghost.remove();
+        hideAllIndicators();
+        drag = null;
+        render();
+        writeFile();
+    }
+
+    function findDropTarget(clientY) {
+        let best = null;
+        let bestDist = Infinity;
+
+        for (const secEl of document.querySelectorAll('.section')) {
+            const si = parseInt(secEl.dataset.section);
+            const itemsContainer = secEl.querySelector(`[data-section-items="${si}"]`);
+            if (!itemsContainer || state.collapsed.has(si)) continue;
+
+            const items = itemsContainer.querySelectorAll('.item');
+            if (items.length === 0) {
+                // Empty section — drop at index 0
+                const rect = itemsContainer.getBoundingClientRect();
+                const dist = Math.abs(clientY - rect.top);
+                if (dist < bestDist) { bestDist = dist; best = { si, ii: 0 }; }
+                continue;
+            }
+
+            for (const itemEl of items) {
+                const rect = itemEl.getBoundingClientRect();
+                const ii = parseInt(itemEl.dataset.index);
+
+                // Top edge = insert before
+                const distTop = Math.abs(clientY - rect.top);
+                if (distTop < bestDist) { bestDist = distTop; best = { si, ii }; }
+
+                // Bottom edge = insert after
+                const distBot = Math.abs(clientY - rect.bottom);
+                if (distBot < bestDist) { bestDist = distBot; best = { si, ii: ii + 1 }; }
+            }
+        }
+        return best;
+    }
+
+    function showDropIndicator(target) {
+        hideAllIndicators();
+        if (!target) return;
+
+        const indicator = document.querySelector(`[data-indicator="${target.si}"]`);
+        if (!indicator) return;
+
+        const container = indicator.parentElement;
+        const items = container.querySelectorAll('.item');
+
+        let topPos;
+        if (items.length === 0) {
+            topPos = 8;
+        } else if (target.ii >= items.length) {
+            const lastItem = items[items.length - 1];
+            topPos = lastItem.offsetTop + lastItem.offsetHeight;
+        } else {
+            topPos = items[target.ii].offsetTop;
+        }
+
+        indicator.style.top = (topPos - 1) + 'px';
+        indicator.classList.add('visible');
+    }
+
+    function hideAllIndicators() {
+        document.querySelectorAll('.drop-indicator').forEach(el => el.classList.remove('visible'));
+    }
+
+    // ============================================================
+    // FILE DRAG & DROP (onto page)
+    // ============================================================
+    const overlay = document.getElementById('dropOverlay');
+    let dragCounter = 0;
+
+    document.addEventListener('dragenter', e => {
+        e.preventDefault();
+        dragCounter++;
+        if (e.dataTransfer.types.includes('Files')) overlay.classList.add('active');
+    });
+    document.addEventListener('dragleave', e => {
+        dragCounter--;
+        if (dragCounter === 0) overlay.classList.remove('active');
+    });
+    document.addEventListener('dragover', e => e.preventDefault());
+    document.addEventListener('drop', async e => {
+        e.preventDefault();
+        dragCounter = 0;
+        overlay.classList.remove('active');
+        for (const item of e.dataTransfer.items) {
+            if (item.kind === 'file') {
+                const handle = await item.getAsFileSystemHandle();
+                if (handle?.kind === 'file' && handle.name.endsWith('.md')) {
+                    await loadFileHandle(handle);
+                    return;
+                }
+            }
+        }
+    });
+
+    // ============================================================
+    // KEYBOARD SHORTCUTS (global)
+    // ============================================================
+    document.addEventListener('keydown', e => {
+        // Escape cancels drag
+        if (e.key === 'Escape' && drag) {
+            document.removeEventListener('pointermove', dragMove);
+            document.removeEventListener('pointerup', dragEnd);
+            state.data.sections[drag.si].items.splice(drag.ii, 0, ...drag.items);
+            drag.ghost.remove();
+            hideAllIndicators();
+            drag = null;
+            render();
+            return;
+        }
+        if (!state.data) return;
+        // Delete/Backspace with selected items
+        if ((e.key === 'Delete' || e.key === 'Backspace') && state.selected.size > 0 && !state.editing) {
+            e.preventDefault();
+            deleteSelected();
+            return;
+        }
+        // Escape clears selection
+        if (e.key === 'Escape' && state.selected.size > 0) {
+            state.selected.clear();
+            render();
+            return;
+        }
+        // Cmd+Z undo, Cmd+Shift+Z redo
+        // Let browser handle undo/redo inside contenteditable (for inline text edits)
+        if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z' || e.key === 'y')) {
+            if (document.activeElement?.closest?.('.item-edit')) return; // let browser handle it
+            e.preventDefault();
+            if (e.key === 'z' && !e.shiftKey) { undo(); }
+            else { redo(); }
+            return;
+        }
+        // Cmd+S to force save
+        if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+            e.preventDefault();
+            writeFile();
+        }
+    });
+
+    // ============================================================
+    // INIT
+    // ============================================================
+    async function init() {
+        const handle = await loadHandle();
+        if (handle) {
+            try {
+                const perm = await handle.queryPermission({ mode: 'readwrite' });
+                if (perm === 'granted') {
+                    await loadFileHandle(handle);
+                    return;
+                }
+                // Permission not granted — try requesting with a click
+                state.fileHandle = handle;
+                renderReconnect(handle.name);
+                return;
+            } catch (e) { /* handle invalid or stale */ }
+        }
+        // No saved handle or it's stale — show landing with file picker
+        render();
+    }
+
+    function renderReconnect(filename) {
+        app.innerHTML = `
+            <div class="landing">
+                <div class="landing-icon">📝</div>
+                <h1>Todo Editor</h1>
+                <p>Open <strong>${escHtml(filename)}</strong> to continue</p>
+                <button class="open-btn" id="reconnectBtn">Open File</button>
+                <p class="hint">Tip: press <kbd>⌘ ⇧ .</kbd> to show hidden files</p>
+            </div>
+        `;
+        document.getElementById('reconnectBtn').onclick = async () => {
+            // Try saved handle first
+            if (state.fileHandle) {
+                try {
+                    const perm = await state.fileHandle.requestPermission({ mode: 'readwrite' });
+                    if (perm === 'granted') {
+                        await saveHandle(state.fileHandle);
+                        await readFile();
+                        render();
+                        startPolling();
+                        return;
+                    }
+                } catch (e) {}
+            }
+            // Fall back to picker
+            openFilePicker();
+        };
+    }
+
+    // Test mode: ?test loads sample data without file picker
+    const TEST_DATA = {
+        preamble: [],
+        sections: [
+            {
+                heading: '👩🏻‍💻 Today',
+                items: [
+                    { checked: false, text: 'first item', indent: 0, blankBefore: false },
+                    { checked: false, text: 'second item with [a link](https://example.com)', indent: 0, blankBefore: false },
+                    { checked: false, text: 'parent item', indent: 0, blankBefore: false },
+                    { checked: false, text: 'child item', indent: 1, blankBefore: false },
+                    { checked: false, text: 'another child', indent: 1, blankBefore: false },
+                    { checked: true, text: 'already done', indent: 0, blankBefore: false },
+                    { checked: false, text: 'last unchecked', indent: 0, blankBefore: false },
+                ]
+            },
+            {
+                heading: '📖 Read',
+                items: [
+                    { checked: false, text: '[Some doc](https://docs.example.com/foo)', indent: 0, blankBefore: false },
+                    { checked: false, text: 'plain item in read', indent: 0, blankBefore: false },
+                ]
+            }
+        ]
+    };
+
+    if (new URLSearchParams(location.search).has('test')) {
+        state.data = JSON.parse(JSON.stringify(TEST_DATA));
+        // Expose for test assertions
+        window._todoState = state;
+        window._todoSerialize = serializeMarkdown;
+        window._todoGetEditValue = getEditValue;
+        render();
+    } else {
+        init();
+    }
+    </script>
+</body>
+</html>
