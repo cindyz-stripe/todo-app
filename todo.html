@@ -279,12 +279,21 @@
         .drag-handle:active { cursor: grabbing; }
 
         .checkbox-wrapper {
+            position: relative;
             flex-shrink: 0;
             width: 22px;
             height: 28px;
             display: flex;
             align-items: center;
             justify-content: center;
+        }
+        .checkbox-wrapper.celebrating::after {
+            content: '';
+            position: absolute;
+            inset: 4px 1px;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: checkboxGlow 700ms var(--ease-out) forwards;
         }
         .checkbox {
             width: 18px;
@@ -565,12 +574,18 @@
             position: absolute;
             pointer-events: none;
             font-size: 24px;
-            animation: sparkleUp 1.4s var(--ease-out) forwards;
+            animation: sparkleFan 720ms var(--ease-out) forwards;
         }
-        @keyframes sparkleUp {
-            0% { opacity: 1; transform: translateY(0) scale(1); }
-            40% { opacity: 1; transform: translateY(-20px) scale(1.1); }
-            100% { opacity: 0; transform: translateY(-48px) scale(0.5); }
+        @keyframes checkboxGlow {
+            0% { opacity: 0; transform: scale(0.7); box-shadow: 0 0 0 0 rgba(248, 164, 200, 0); }
+            35% { opacity: 0.8; transform: scale(1.15); box-shadow: 0 0 12px 4px rgba(218, 164, 232, 0.35); }
+            100% { opacity: 0; transform: scale(1.55); box-shadow: 0 0 16px 7px rgba(184, 210, 248, 0); }
+        }
+        @keyframes sparkleFan {
+            0% { opacity: 0; transform: translate(-50%, 4px) rotate(0deg) scale(0.7); }
+            18% { opacity: 1; }
+            62% { opacity: 1; transform: translate(calc(-50% + var(--sparkle-x)), var(--sparkle-y)) rotate(var(--sparkle-rotate)) scale(calc(var(--sparkle-scale) * 1.08)); }
+            100% { opacity: 0; transform: translate(calc(-50% + var(--sparkle-x)), var(--sparkle-y)) rotate(var(--sparkle-rotate)) scale(var(--sparkle-scale)); }
         }
 
         /* Item complete strikethrough animation */
@@ -633,6 +648,11 @@
     ];
 
     const SPARKLE_EMOJIS = ['✨', '⭐', '💫', '🌸', '🎀', '💖', '🦋', '🍡', '🧁', '🌈', '💐', '🎉', '🪷', '🫧', '☁️', '🍓', '🌷', '💝', '🎊', '✿'];
+    const SPARKLE_PATHS = [
+        { x: '-28px', y: '-40px', rotation: '-15deg', scale: '0.9', delay: '0ms' },
+        { x: '0px', y: '-52px', rotation: '0deg', scale: '1.05', delay: '70ms' },
+        { x: '28px', y: '-40px', rotation: '15deg', scale: '0.9', delay: '140ms' },
+    ];
     let previousSparkleEmoji = null;
 
     const state = {
@@ -1132,16 +1152,23 @@
                 const wrapper = itemEl.querySelector('.checkbox-wrapper');
                 const rect = wrapper.getBoundingClientRect();
                 const parentRect = itemEl.getBoundingClientRect();
-                for (let s = 0; s < 3; s++) {
+                wrapper.classList.add('celebrating');
+                setTimeout(() => wrapper.classList.remove('celebrating'), 700);
+                SPARKLE_PATHS.forEach(path => {
                     const sparkle = document.createElement('span');
                     sparkle.className = 'sparkle';
                     sparkle.textContent = sparkleEmoji;
-                    sparkle.style.left = (rect.left - parentRect.left + Math.random() * 20 - 5) + 'px';
+                    sparkle.setAttribute('aria-hidden', 'true');
+                    sparkle.style.setProperty('--sparkle-x', path.x);
+                    sparkle.style.setProperty('--sparkle-y', path.y);
+                    sparkle.style.setProperty('--sparkle-rotate', path.rotation);
+                    sparkle.style.setProperty('--sparkle-scale', path.scale);
+                    sparkle.style.left = (rect.left - parentRect.left + rect.width / 2) + 'px';
                     sparkle.style.top = (rect.top - parentRect.top - 2) + 'px';
-                    sparkle.style.animationDelay = (s * 150) + 'ms';
+                    sparkle.style.animationDelay = path.delay;
                     itemEl.appendChild(sparkle);
-                    setTimeout(() => sparkle.remove(), 1800);
-                }
+                    setTimeout(() => sparkle.remove(), 900);
+                });
             }
         }
         writeFile();

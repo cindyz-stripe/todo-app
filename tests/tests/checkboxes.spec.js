@@ -35,6 +35,23 @@ test('one check uses the same emoji for every sparkle', async ({ page }) => {
   expect(new Set(emojis).size).toBe(1);
 });
 
+test('completion emojis fan outward with a subtle glow', async ({ page }) => {
+  const item = page.locator('[data-section="0"] .item').first();
+  const wrapper = item.locator('.checkbox-wrapper');
+
+  await item.locator('.checkbox').click();
+
+  const sparkles = item.locator('.sparkle');
+  await expect(sparkles).toHaveCount(3);
+  expect(await sparkles.evaluateAll(elements =>
+    elements.map(element => element.style.getPropertyValue('--sparkle-x'))
+  )).toEqual(['-28px', '0px', '28px']);
+  expect(await sparkles.evaluateAll(elements =>
+    elements.map(element => element.getAttribute('aria-hidden'))
+  )).toEqual(['true', 'true', 'true']);
+  await expect(wrapper).toHaveClass(/\bcelebrating\b/);
+});
+
 test('consecutive checks choose different celebration emojis', async ({ page }) => {
   await page.evaluate(() => { Math.random = () => 0; });
   const items = page.locator('[data-section="0"] .item');
