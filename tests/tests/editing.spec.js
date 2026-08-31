@@ -74,6 +74,54 @@ async function caretTop(edit) {
   });
 }
 
+const WRAPPED_RICH_TEXT = 'Opening words occupy several rendered lines before the **strong boundary marker** with surrounding text that keeps [linked boundary marker](https://example.com) away from both outer visual lines, followed by plenty of trailing words to ensure multiple rendered lines remain below every inline element in this todo item.';
+
+async function editWrappedRichItem(page) {
+  await page.addStyleTag({ content: '.main { max-width: 260px !important; }' });
+  await page.evaluate(text => {
+    window._todoState.data.sections[0].items[1].text = text;
+    window.render();
+  }, WRAPPED_RICH_TEXT);
+  const item = page.locator('[data-section="0"] .item').nth(1);
+  await item.locator('.item-text').click({ position: { x: 5, y: 5 } });
+  return item.locator('.item-edit');
+}
+
+async function placeCaretAtNestedEnd(edit, selector) {
+  return edit.evaluate((input, nestedSelector) => {
+    const element = input.querySelector(nestedSelector);
+    if (!element || !element.childNodes.length) throw new Error(`Missing ${nestedSelector} content`);
+
+    const contentRange = document.createRange();
+    contentRange.selectNodeContents(input);
+    const lineTops = Array.from(contentRange.getClientRects())
+      .filter(rect => rect.height > 0)
+      .map(rect => rect.top)
+      .filter((top, index, all) => all.findIndex(candidate => Math.abs(candidate - top) < 2) === index);
+    const elementRange = document.createRange();
+    elementRange.selectNodeContents(element);
+    const elementTops = Array.from(elementRange.getClientRects())
+      .filter(rect => rect.height > 0)
+      .map(rect => rect.top)
+      .sort((a, b) => a - b);
+    const caretRange = document.createRange();
+    caretRange.setStart(element, element.childNodes.length);
+    caretRange.collapse(true);
+    input.focus();
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(caretRange);
+    return {
+      boundaryTop: elementTops.at(-1),
+      caretHeight: caretRange.getBoundingClientRect().height,
+      containerTag: caretRange.startContainer.tagName,
+      firstLineTop: Math.min(...lineTops),
+      lastLineTop: Math.max(...lineTops),
+      lineCount: lineTops.length,
+    };
+  }, selector);
+}
+
 test('click to edit, blur saves, escape cancels', async ({ page }) => {
   await page.locator('.item-text').first().click();
   await expect(page.locator('.item-edit')).toHaveCount(1);
@@ -186,4 +234,76 @@ test('up from the natural end caret stays within wrapped text', async ({ page })
 
   await expect(item.locator('.item-edit')).toBeVisible();
   expect(await caretTop(edit)).toBeLessThan(geometry.lastLineTop - 1);
+});
+
+test('shift+down extends selection within a wrapped item', async ({ page }) => {
+  const edit = await editWrappedItem(page, 0);
+  await placeCaretOnVisualLine(edit, 'first');
+
+  await page.keyboard.press('Shift+ArrowDown');
+
+  await expect(page.locator('[data-section="0"] .item').nth(0).locator('.item-edit')).toBeVisible();
+  const selection = await edit.evaluate(input => {
+    const current = window.getSelection();
+    return {
+      collapsed: current.isCollapsed,
+      insideItem: input.contains(current.anchorNode) && input.contains(current.focusNode),
+      text: current.toString(),
+    };
+  });
+  expect(selection.insideItem).toBe(true);
+  expect(selection.collapsed).toBe(false);
+  expect(selection.text.length).toBeGreaterThan(0);
+});
+
+test('arrow keys navigate across section boundaries and preserve edits', async ({ page }) => {
+  const sectionZeroItems = page.locator('[data-section="0"] .item');
+  const lastItemIndex = await sectionZeroItems.count() - 1;
+  const lastItem = sectionZeroItems.nth(lastItemIndex);
+  await lastItem.locator('.item-text').click();
+  const lastEdit = lastItem.locator('.item-edit');
+  await lastEdit.fill('edited last item is preserved');
+  await placeCaretOnVisualLine(lastEdit, 'last');
+
+  await page.keyboard.press('ArrowDown');
+
+  const nextSectionEdit = page.locator('[data-section="1"] .item').nth(0).locator('.item-edit');
+  await expect(nextSectionEdit).toBeVisible();
+  await placeCaretOnVisualLine(nextSectionEdit, 'first');
+
+  await page.keyboard.press('ArrowUp');
+
+  const returnedEdit = page.locator('[data-section="0"] .item').nth(lastItemIndex).locator('.item-edit');
+  await expect(returnedEdit).toBeVisible();
+  await expect(returnedEdit).toHaveText('edited last item is preserved');
+});
+
+test('strong element boundary moves natively within wrapped text', async ({ page }) => {
+  const edit = await editWrappedRichItem(page);
+  const geometry = await placeCaretAtNestedEnd(edit, 'strong');
+  expect(geometry.lineCount).toBeGreaterThanOrEqual(3);
+  expect(geometry.caretHeight).toBe(0);
+  expect(geometry.containerTag).toBe('STRONG');
+  expect(geometry.boundaryTop).toBeGreaterThan(geometry.firstLineTop + 1);
+  expect(geometry.boundaryTop).toBeLessThan(geometry.lastLineTop - 1);
+
+  await page.keyboard.press('ArrowDown');
+
+  await expect(page.locator('[data-section="0"] .item').nth(1).locator('.item-edit')).toBeVisible();
+  expect(await caretTop(edit)).toBeGreaterThan(geometry.boundaryTop + 1);
+});
+
+test('link element boundary moves natively within wrapped text', async ({ page }) => {
+  const edit = await editWrappedRichItem(page);
+  const geometry = await placeCaretAtNestedEnd(edit, 'a');
+  expect(geometry.lineCount).toBeGreaterThanOrEqual(3);
+  expect(geometry.caretHeight).toBe(0);
+  expect(geometry.containerTag).toBe('A');
+  expect(geometry.boundaryTop).toBeGreaterThan(geometry.firstLineTop + 1);
+  expect(geometry.boundaryTop).toBeLessThan(geometry.lastLineTop - 1);
+
+  await page.keyboard.press('ArrowUp');
+
+  await expect(page.locator('[data-section="0"] .item').nth(1).locator('.item-edit')).toBeVisible();
+  expect(await caretTop(edit)).toBeLessThan(geometry.boundaryTop - 1);
 });
