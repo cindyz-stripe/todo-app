@@ -47,3 +47,17 @@ test('consecutive checks choose different celebration emojis', async ({ page }) 
 
   expect(secondEmoji).not.toBe(firstEmoji);
 });
+
+test('unchecking does not create another celebration', async ({ page }) => {
+  await page.evaluate(() => { Math.random = () => 0; });
+  const item = page.locator('[data-section="0"] .item').first();
+  const checkbox = item.locator('.checkbox');
+  const sparkles = item.locator('.sparkle');
+
+  await checkbox.click();
+  expect(await sparkles.count()).toBe(3);
+
+  await checkbox.click();
+  await expect(checkbox).not.toHaveClass(/\bchecked\b/);
+  expect(await sparkles.count()).toBe(3);
+});
