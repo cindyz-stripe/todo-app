@@ -632,6 +632,9 @@
         { bg: '#e8f0ff', accent: '#a0b8f0', text: '#5878c0' },  // periwinkle
     ];
 
+    const SPARKLE_EMOJIS = ['✨', '⭐', '💫', '🌸', '🎀', '💖', '🦋', '🍡', '🧁', '🌈', '💐', '🎉', '🪷', '🫧', '☁️', '🍓', '🌷', '💝', '🎊', '✿'];
+    let previousSparkleEmoji = null;
+
     const state = {
         data: null,
         fileHandle: null,
@@ -1087,6 +1090,12 @@
     // ============================================================
     // ITEM OPERATIONS
     // ============================================================
+    function chooseSparkleEmoji() {
+        const choices = SPARKLE_EMOJIS.filter(emoji => emoji !== previousSparkleEmoji);
+        previousSparkleEmoji = choices[Math.floor(Math.random() * choices.length)];
+        return previousSparkleEmoji;
+    }
+
     function toggleCheck(si, ii) {
         // Neutralize any active edit to prevent stale blur from corrupting data
         if (state.editing) {
@@ -1119,14 +1128,14 @@
             if (txt) txt.classList.toggle('checked');
             // Sparkle on check
             if (item.checked) {
-                const sparkles = ['✨', '⭐', '💫', '🌸', '🎀', '💖', '🦋', '🍡', '🧁', '🌈', '💐', '🎉', '🪷', '🫧', '☁️', '🍓', '🌷', '💝', '🎊', '✿'];
+                const sparkleEmoji = chooseSparkleEmoji();
                 const wrapper = itemEl.querySelector('.checkbox-wrapper');
                 const rect = wrapper.getBoundingClientRect();
                 const parentRect = itemEl.getBoundingClientRect();
                 for (let s = 0; s < 3; s++) {
                     const sparkle = document.createElement('span');
                     sparkle.className = 'sparkle';
-                    sparkle.textContent = sparkles[Math.floor(Math.random() * sparkles.length)];
+                    sparkle.textContent = sparkleEmoji;
                     sparkle.style.left = (rect.left - parentRect.left + Math.random() * 20 - 5) + 'px';
                     sparkle.style.top = (rect.top - parentRect.top - 2) + 'px';
                     sparkle.style.animationDelay = (s * 150) + 'ms';
