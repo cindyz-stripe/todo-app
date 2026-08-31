@@ -1440,20 +1440,53 @@
         }
     }
 
+    function adjacentTextTops(input, caretRange) {
+        const prefixRange = document.createRange();
+        prefixRange.selectNodeContents(input);
+        prefixRange.setEnd(caretRange.startContainer, caretRange.startOffset);
+        const caretOffset = prefixRange.toString().length;
+        const walker = document.createTreeWalker(input, NodeFilter.SHOW_TEXT);
+        const textNodes = [];
+        let textLength = 0;
+        while (walker.nextNode()) {
+            if (!walker.currentNode.nodeValue.length) continue;
+            textNodes.push({ node: walker.currentNode, offset: textLength });
+            textLength += walker.currentNode.nodeValue.length;
+        }
+
+        const offsets = [];
+        if (caretOffset > 0) offsets.push(caretOffset - 1);
+        if (caretOffset < textLength) offsets.push(caretOffset);
+        return offsets.flatMap(offset => {
+            const entry = textNodes.find(({ node, offset: start }) => offset < start + node.nodeValue.length);
+            if (!entry) return [];
+            const characterRange = document.createRange();
+            const localOffset = offset - entry.offset;
+            characterRange.setStart(entry.node, localOffset);
+            characterRange.setEnd(entry.node, localOffset + 1);
+            const rect = Array.from(characterRange.getClientRects()).find(candidate => candidate.height > 0);
+            return rect ? [rect.top] : [];
+        });
+    }
+
     function isCaretOnVisualBoundary(input, direction) {
         const sel = window.getSelection();
         if (!sel.rangeCount || !sel.isCollapsed || !input.contains(sel.anchorNode)) return false;
 
-        const caretRect = sel.getRangeAt(0).getBoundingClientRect();
+        const caretRange = sel.getRangeAt(0);
+        const caretRect = caretRange.getBoundingClientRect();
         const contentRange = document.createRange();
         contentRange.selectNodeContents(input);
         const lineRects = Array.from(contentRange.getClientRects()).filter(rect => rect.height > 0);
-        if (!lineRects.length || caretRect.height === 0) return true;
+        if (!lineRects.length) return true;
+
+        const caretTops = caretRect.height > 0 ? [caretRect.top] : adjacentTextTops(input, caretRange);
+        if (!caretTops.length) return true;
 
         const boundaryTop = direction === 'up'
             ? Math.min(...lineRects.map(rect => rect.top))
             : Math.max(...lineRects.map(rect => rect.top));
-        return Math.abs(caretRect.top - boundaryTop) < 2;
+        return caretTops.every(top => Math.abs(top - boundaryTop) < 2);
     }
 
     function editKeydown(e, si, ii, input) {

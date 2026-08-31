@@ -154,3 +154,36 @@ test('up moves within wrapped text before moving to the previous item', async ({
 
   await expect(page.locator('[data-section="0"] .item').nth(0).locator('.item-edit')).toBeVisible();
 });
+
+test('up from the natural end caret stays within wrapped text', async ({ page }) => {
+  const wrappedRichText = `${WRAPPED_TEXT} It also contains **strong words** and ends with [a link](https://example.com)`;
+  await page.addStyleTag({ content: '.main { max-width: 260px !important; }' });
+  await page.evaluate(text => {
+    window._todoState.data.sections[0].items[1].text = text;
+    window.render();
+  }, wrappedRichText);
+
+  const item = page.locator('[data-section="0"] .item').nth(1);
+  await item.locator('.item-text').click();
+  const edit = item.locator('.item-edit');
+  const geometry = await edit.evaluate(input => {
+    const contentRange = document.createRange();
+    contentRange.selectNodeContents(input);
+    const lineTops = Array.from(contentRange.getClientRects())
+      .filter(rect => rect.height > 0)
+      .map(rect => rect.top)
+      .filter((top, index, all) => all.findIndex(candidate => Math.abs(candidate - top) < 2) === index);
+    return {
+      caretHeight: window.getSelection().getRangeAt(0).getBoundingClientRect().height,
+      lineCount: lineTops.length,
+      lastLineTop: Math.max(...lineTops),
+    };
+  });
+  expect(geometry.lineCount).toBeGreaterThanOrEqual(3);
+  expect(geometry.caretHeight).toBe(0);
+
+  await page.keyboard.press('ArrowUp');
+
+  await expect(item.locator('.item-edit')).toBeVisible();
+  expect(await caretTop(edit)).toBeLessThan(geometry.lastLineTop - 1);
+});
