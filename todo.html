@@ -1440,6 +1440,22 @@
         }
     }
 
+    function isCaretOnVisualBoundary(input, direction) {
+        const sel = window.getSelection();
+        if (!sel.rangeCount || !sel.isCollapsed || !input.contains(sel.anchorNode)) return false;
+
+        const caretRect = sel.getRangeAt(0).getBoundingClientRect();
+        const contentRange = document.createRange();
+        contentRange.selectNodeContents(input);
+        const lineRects = Array.from(contentRange.getClientRects()).filter(rect => rect.height > 0);
+        if (!lineRects.length || caretRect.height === 0) return true;
+
+        const boundaryTop = direction === 'up'
+            ? Math.min(...lineRects.map(rect => rect.top))
+            : Math.max(...lineRects.map(rect => rect.top));
+        return Math.abs(caretRect.top - boundaryTop) < 2;
+    }
+
     function editKeydown(e, si, ii, input) {
         if (e.key === 'Enter') {
             e.preventDefault();
@@ -1507,7 +1523,7 @@
                 input.removeAttribute('onblur');
                 deleteItem(si, ii);
             }
-        } else if (e.key === 'ArrowUp' && !e.shiftKey) {
+        } else if (e.key === 'ArrowUp' && !e.shiftKey && isCaretOnVisualBoundary(input, 'up')) {
             e.preventDefault();
             const val = editVal(input);
             if (val) state.data.sections[si].items[ii].text = val;
@@ -1521,7 +1537,7 @@
                 closeEdit(input, si, ii);
                 startEdit(targetSi, targetIi);
             }
-        } else if (e.key === 'ArrowDown' && !e.shiftKey) {
+        } else if (e.key === 'ArrowDown' && !e.shiftKey && isCaretOnVisualBoundary(input, 'down')) {
             e.preventDefault();
             const val = editVal(input);
             if (val) state.data.sections[si].items[ii].text = val;
