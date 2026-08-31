@@ -587,6 +587,18 @@
             62% { opacity: 1; transform: translate(calc(-50% + var(--sparkle-x)), var(--sparkle-y)) rotate(var(--sparkle-rotate)) scale(calc(var(--sparkle-scale) * 1.08)); }
             100% { opacity: 0; transform: translate(calc(-50% + var(--sparkle-x)), var(--sparkle-y)) rotate(var(--sparkle-rotate)) scale(var(--sparkle-scale)); }
         }
+        @keyframes sparkleFade {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .checkbox.just-checked,
+            .checkbox-wrapper.celebrating::after { animation: none; }
+            .sparkle {
+                animation-name: sparkleFade;
+                animation-duration: 400ms;
+            }
+        }
 
         /* Item complete strikethrough animation */
         .item-text.checking {

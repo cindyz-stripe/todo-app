@@ -78,3 +78,23 @@ test('unchecking does not create another celebration', async ({ page }) => {
   await expect(checkbox).not.toHaveClass(/\bchecked\b/);
   expect(await sparkles.count()).toBe(3);
 });
+
+test('reduced motion uses a simple celebration fade', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+
+  const item = page.locator('[data-section="0"] .item').first();
+  await item.locator('.checkbox').click();
+
+  await expect(item.locator('.sparkle')).toHaveCount(3);
+  const animationNames = await item.evaluate(element => ({
+    checkbox: getComputedStyle(element.querySelector('.checkbox')).animationName,
+    sparkle: getComputedStyle(element.querySelector('.sparkle')).animationName,
+    glow: getComputedStyle(element.querySelector('.checkbox-wrapper'), '::after').animationName,
+  }));
+
+  expect(animationNames).toEqual({
+    checkbox: 'none',
+    sparkle: 'sparkleFade',
+    glow: 'none',
+  });
+});
