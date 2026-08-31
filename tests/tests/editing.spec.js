@@ -188,6 +188,38 @@ test('down moves within wrapped text before moving to the next item', async ({ p
   await expect(page.locator('[data-section="0"] .item').nth(1).locator('.item-edit')).toBeVisible();
 });
 
+test('down enters the next wrapped item at its start', async ({ page }) => {
+  await page.addStyleTag({ content: '.main { max-width: 260px !important; }' });
+  await page.evaluate(text => {
+    window._todoState.data.sections[0].items[0].text = text;
+    window._todoState.data.sections[0].items[1].text = text;
+    window.render();
+  }, WRAPPED_TEXT);
+
+  const sourceItem = page.locator('[data-section="0"] .item').nth(0);
+  await sourceItem.locator('.item-text').click();
+  await placeCaretOnVisualLine(sourceItem.locator('.item-edit'), 'last');
+  await page.keyboard.press('ArrowDown');
+
+  const destinationEdit = page.locator('[data-section="0"] .item').nth(1).locator('.item-edit');
+  await expect(destinationEdit).toBeVisible();
+  const caret = await destinationEdit.evaluate(input => {
+    const contentRange = document.createRange();
+    contentRange.selectNodeContents(input);
+    const lineTops = Array.from(contentRange.getClientRects())
+      .filter(rect => rect.height > 0)
+      .map(rect => rect.top)
+      .filter((top, index, all) => all.findIndex(candidate => Math.abs(candidate - top) < 2) === index);
+    const selection = window.getSelection();
+    const beforeCaret = document.createRange();
+    beforeCaret.selectNodeContents(input);
+    beforeCaret.setEnd(selection.anchorNode, selection.anchorOffset);
+    return { lineCount: lineTops.length, textBeforeCaret: beforeCaret.toString() };
+  });
+  expect(caret.lineCount).toBeGreaterThanOrEqual(3);
+  expect(caret.textBeforeCaret).toBe('');
+});
+
 test('up moves within wrapped text before moving to the previous item', async ({ page }) => {
   const edit = await editWrappedItem(page, 1);
   const lastLineTop = await placeCaretOnVisualLine(edit, 'last');

@@ -1148,7 +1148,7 @@
     }
 
 
-    function startEdit(si, ii) {
+    function startEdit(si, ii, caretPlacement = 'end') {
         state.selected.clear();
         // Save previous edit if any (blur won't fire since we're manipulating DOM)
         if (state.editing) {
@@ -1165,7 +1165,7 @@
                         render(); // Structural change needs full render
                         // Re-call startEdit with possibly adjusted index
                         const adjIi = (prev.sectionIndex === si && prev.itemIndex < ii) ? ii - 1 : ii;
-                        startEdit(si, adjIi);
+                        startEdit(si, adjIi, caretPlacement);
                         writeFile();
                         return;
                     }
@@ -1192,10 +1192,10 @@
                 const inp = content.querySelector('.item-edit');
                 if (inp) {
                     inp.focus();
-                    // Place cursor at end
                     const sel = window.getSelection();
                     sel.selectAllChildren(inp);
-                    sel.collapseToEnd();
+                    if (caretPlacement === 'start') sel.collapseToStart();
+                    else sel.collapseToEnd();
                 }
             }
         } else {
@@ -1583,7 +1583,7 @@
             if (state.data.sections[targetSi]?.items[targetIi]) {
                 state.editing = null;
                 closeEdit(input, si, ii);
-                startEdit(targetSi, targetIi);
+                startEdit(targetSi, targetIi, 'start');
             }
         }
     }
