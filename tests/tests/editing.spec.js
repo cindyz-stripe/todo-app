@@ -176,6 +176,19 @@ test('enter at end creates item below', async ({ page }) => {
   await expect(page.locator('[data-section="0"] .item').nth(1).locator('.item-edit')).toBeVisible();
 });
 
+test('enter on a parent creates a new child directly underneath', async ({ page }) => {
+  const items = page.locator('[data-section="0"] .item');
+  await items.nth(2).locator('.item-text').click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+
+  await expect(items).toHaveCount(8);
+  await expect(items.nth(3).locator('.item-edit')).toBeVisible();
+  expect(await page.evaluate(() => window._todoState.data.sections[0].items[3].indent)).toBe(1);
+  await expect(items.nth(4).locator('.item-text')).toContainText('child item');
+  await expect(items.nth(5).locator('.item-text')).toContainText('another child');
+});
+
 test('enter at beginning creates item above', async ({ page }) => {
   await page.locator('.item-text').first().click();
   await page.keyboard.press('Home');

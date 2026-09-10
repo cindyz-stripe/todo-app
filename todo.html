@@ -1556,9 +1556,14 @@
                 newIndex = ii;
                 state.data.sections[si].items.splice(ii, 0, { checked: false, text: '', indent: currentItem.indent, blankBefore: false });
             } else {
-                const childCount = getChildCount(si, ii);
-                newIndex = ii + childCount + 1;
-                state.data.sections[si].items.splice(newIndex, 0, { checked: false, text: '', indent: currentItem.indent, blankBefore: false });
+                const hasChildren = getChildCount(si, ii) > 0;
+                newIndex = ii + 1;
+                state.data.sections[si].items.splice(newIndex, 0, {
+                    checked: false,
+                    text: '',
+                    indent: currentItem.indent + (hasChildren ? 1 : 0),
+                    blankBefore: false,
+                });
             }
             state.editing = { sectionIndex: si, itemIndex: newIndex };
             rerenderSection(si);
