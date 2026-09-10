@@ -2012,9 +2012,12 @@
             return;
         }
         // Cmd+Z undo, Cmd+Shift+Z redo
-        // Let browser handle undo/redo inside contenteditable (for inline text edits)
         if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z' || e.key === 'y')) {
-            if (document.activeElement?.closest?.('.item-edit')) return; // let browser handle it
+            const activeEditor = document.activeElement?.closest?.('.item-edit');
+            const editingItem = state.editing
+                ? state.data.sections[state.editing.sectionIndex]?.items[state.editing.itemIndex]
+                : null;
+            if (activeEditor && editingItem && getEditValue(activeEditor).trim() !== editingItem.text) return;
             e.preventDefault();
             if (e.key === 'z' && !e.shiftKey) { undo(); }
             else { redo(); }

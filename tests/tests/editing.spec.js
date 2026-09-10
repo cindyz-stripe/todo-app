@@ -138,6 +138,35 @@ test('click to edit, blur saves, escape cancels', async ({ page }) => {
   await expect(page.locator('.item-text').first()).toContainText('updated text');
 });
 
+test('cmd+z undoes a structural deletion while another item is focused and cmd+shift+z redoes it', async ({ page }) => {
+  const items = page.locator('[data-section="0"] .item');
+  await items.nth(0).locator('.item-text').click();
+  await items.nth(2).locator('.delete-btn').click();
+
+  await expect(items).toHaveCount(4);
+  await expect(items.nth(0).locator('.item-edit')).toBeVisible();
+
+  await page.keyboard.press('Meta+z');
+  await expect(items).toHaveCount(7);
+  await expect(items.nth(2).locator('.item-text')).toContainText('parent item');
+  await expect(items.nth(3).locator('.item-text')).toContainText('child item');
+  await expect(items.nth(4).locator('.item-text')).toContainText('another child');
+
+  await page.keyboard.press('Meta+Shift+z');
+  await expect(items).toHaveCount(4);
+});
+
+test('cmd+z uses native undo for unsaved text edits', async ({ page }) => {
+  const firstItem = page.locator('[data-section="0"] .item').nth(0);
+  await firstItem.locator('.item-text').click();
+  await page.keyboard.press('End');
+  await page.keyboard.insertText(' updated');
+  await expect(firstItem.locator('.item-edit')).toHaveText('first item updated');
+
+  await page.keyboard.press('Meta+z');
+  await expect(firstItem.locator('.item-edit')).toHaveText('first item');
+});
+
 test('enter at end creates item below', async ({ page }) => {
   const countBefore = await page.locator('[data-section="0"] .item').count();
   await page.locator('.item-text').first().click();
