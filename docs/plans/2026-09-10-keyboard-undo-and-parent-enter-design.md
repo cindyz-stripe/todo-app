@@ -6,7 +6,7 @@ Make `Cmd+Z` undo the most recent effective action and make Enter on a parent cr
 
 ## Undo behavior
 
-The app keeps its existing 50-entry snapshot history for structural and committed edits. When an item editor contains text that differs from the model, `Cmd+Z` and `Cmd+Shift+Z` remain native browser operations so character-level text undo and redo continue to work. When the focused editor matches the model, the shortcut uses the app history; this covers structural changes that preserve focus on another item, including deleting a parent subtree.
+The app keeps its existing 50-entry snapshot history for structural and committed edits. It explicitly tracks whether the latest action belongs to the active contenteditable or the app, along with native redo depth. `Cmd+Z` and `Cmd+Shift+Z` therefore preserve character-level browser undo and redo while app actions—including structural changes that retain editor focus—use snapshot history. When outdenting after an unsaved edit, the text is recorded before the structural snapshot so undo restores the indentation without losing the preceding text change.
 
 ## Enter behavior
 

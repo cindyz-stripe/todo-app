@@ -4,7 +4,7 @@
 
 **Goal:** Make undo select the correct text or app history and make Enter on a parent insert a new first child.
 
-**Architecture:** Keep the existing browser-native editing history and app-level JSON snapshot history. Choose between them by comparing the active editor DOM with its model item, and specialize the existing Enter insertion branch when the current item has descendants.
+**Architecture:** Keep the existing browser-native editing history and app-level JSON snapshot history. Track which history owns the latest action and native redo depth, and specialize the existing Enter insertion branch when the current item has descendants.
 
 **Tech Stack:** Single-file HTML/JavaScript application, Playwright, Chrome File System Access API.
 
@@ -28,7 +28,7 @@ Expected: FAIL because the focused contenteditable consumes `Cmd+Z` instead of t
 
 **Step 3: Write the minimal implementation**
 
-In the global undo handler, inspect the active `.item-edit`. Return to browser-native undo only when `getEditValue(activeEditor).trim()` differs from the current model item's text. Otherwise prevent the default and call `undo()` or `redo()`.
+Track editor input, native undo/redo events, and app snapshots explicitly. Route to browser-native history when it owns the latest edit or has redo available; otherwise prevent the default and call `undo()` or `redo()`. Record pending editor text before an outdent snapshot so structural undo preserves that text.
 
 **Step 4: Run the test to verify it passes**
 

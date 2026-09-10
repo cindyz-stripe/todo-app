@@ -1071,17 +1071,23 @@
     const undoStack = [];
     const redoStack = [];
     const UNDO_LIMIT = 50;
+    let lastUndoSource = 'app';
+    let nativeRedoDepth = 0;
 
     function pushUndo() {
         undoStack.push(JSON.stringify(state.data));
         if (undoStack.length > UNDO_LIMIT) undoStack.shift();
         redoStack.length = 0;
+        lastUndoSource = 'app';
+        nativeRedoDepth = 0;
     }
     function undo() {
         if (!undoStack.length) return;
         redoStack.push(JSON.stringify(state.data));
         state.data = JSON.parse(undoStack.pop());
         state.editing = null;
+        lastUndoSource = 'app';
+        nativeRedoDepth = 0;
         render();
         writeFile();
     }
@@ -1090,6 +1096,8 @@
         undoStack.push(JSON.stringify(state.data));
         state.data = JSON.parse(redoStack.pop());
         state.editing = null;
+        lastUndoSource = 'app';
+        nativeRedoDepth = 0;
         render();
         writeFile();
     }
@@ -1590,6 +1598,11 @@
             const item = state.data.sections[si].items[ii];
             if (item.indent > 0) {
                 e.preventDefault();
+                const inputText = editVal(input);
+                if (inputText && inputText !== item.text) {
+                    pushUndo();
+                    item.text = inputText;
+                }
                 pushUndo();
                 item.indent--;
                 const itemEl = input.closest('.item');
@@ -1991,6 +2004,24 @@
     // ============================================================
     // KEYBOARD SHORTCUTS (global)
     // ============================================================
+    document.addEventListener('input', e => {
+        const editor = e.target.closest?.('.item-edit');
+        if (!editor) return;
+        if (e.inputType === 'historyUndo') {
+            nativeRedoDepth++;
+            const editingItem = state.editing
+                ? state.data.sections[state.editing.sectionIndex]?.items[state.editing.itemIndex]
+                : null;
+            lastUndoSource = editingItem && getEditValue(editor).trim() === editingItem.text ? 'app' : 'native';
+        } else if (e.inputType === 'historyRedo') {
+            nativeRedoDepth = Math.max(0, nativeRedoDepth - 1);
+            lastUndoSource = 'native';
+        } else {
+            nativeRedoDepth = 0;
+            lastUndoSource = 'native';
+        }
+    });
+
     document.addEventListener('keydown', e => {
         // Escape cancels drag
         if (e.key === 'Escape' && drag) {
@@ -2019,10 +2050,8 @@
         // Cmd+Z undo, Cmd+Shift+Z redo
         if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z' || e.key === 'y')) {
             const activeEditor = document.activeElement?.closest?.('.item-edit');
-            const editingItem = state.editing
-                ? state.data.sections[state.editing.sectionIndex]?.items[state.editing.itemIndex]
-                : null;
-            if (activeEditor && editingItem && getEditValue(activeEditor).trim() !== editingItem.text) return;
+            const isRedo = e.key === 'y' || e.shiftKey;
+            if (activeEditor && (lastUndoSource === 'native' || (isRedo && nativeRedoDepth > 0))) return;
             e.preventDefault();
             if (e.key === 'z' && !e.shiftKey) { undo(); }
             else { redo(); }

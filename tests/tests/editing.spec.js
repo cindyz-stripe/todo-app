@@ -165,6 +165,24 @@ test('cmd+z uses native undo for unsaved text edits', async ({ page }) => {
 
   await page.keyboard.press('Meta+z');
   await expect(firstItem.locator('.item-edit')).toHaveText('first item');
+
+  await page.keyboard.press('Meta+Shift+z');
+  await expect(firstItem.locator('.item-edit')).toHaveText('first item updated');
+});
+
+test('cmd+z undoes an outdent before the preceding text edit', async ({ page }) => {
+  const childItem = page.locator('[data-section="0"] .item').nth(3);
+  await childItem.locator('.item-text').click();
+  await page.keyboard.press('Home');
+  await page.keyboard.insertText('updated ');
+  const editedText = (await childItem.locator('.item-edit').textContent()).trim();
+  await page.keyboard.press('Home');
+  await page.keyboard.press('Backspace');
+  expect(await page.evaluate(() => window._todoState.data.sections[0].items[3].indent)).toBe(0);
+
+  await page.keyboard.press('Meta+z');
+  expect(await page.evaluate(() => window._todoState.data.sections[0].items[3].indent)).toBe(1);
+  await expect(childItem.locator('.item-text')).toHaveText(editedText);
 });
 
 test('enter at end creates item below', async ({ page }) => {
