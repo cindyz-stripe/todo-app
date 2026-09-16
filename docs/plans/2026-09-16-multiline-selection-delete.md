@@ -206,4 +206,3 @@ Expected: no whitespace errors, a clean feature branch, only the approved select
 **Step 2: Integrate**
 
 Use `$finishing-a-development-branch` to merge into local `main`. Rerun the full suite on merged `main`, update `/Users/cindyz/todo.html` to match the repository copy, verify byte equality, push `main` to the configured GitHub remote, then clean up the merged branch and worktree.
-
