@@ -6,6 +6,32 @@ test.beforeEach(async ({ page }) => {
 });
 
 const WRAPPED_TEXT = 'This deliberately long todo item wraps across several rendered visual lines so arrow navigation follows the caret before moving between separate todo items.';
+const MULTILINE_SELECTION_TEXT = `keep${'selected'.repeat(24)}stay`;
+
+async function selectWrappedDisplayText(page) {
+  await page.addStyleTag({ content: '.main { max-width: 260px !important; }' });
+  await page.evaluate(text => {
+    window._todoState.data.sections[0].items[0].text = text;
+    window.render();
+  }, MULTILINE_SELECTION_TEXT);
+
+  return page.locator('[data-section="0"] .item').first().locator('.item-text').evaluate(display => {
+    const textNode = display.firstChild;
+    const range = document.createRange();
+    range.setStart(textNode, 4);
+    range.setEnd(textNode, textNode.length - 4);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    const lineTops = Array.from(range.getClientRects())
+      .filter(rect => rect.height > 0)
+      .map(rect => rect.top)
+      .filter((top, index, all) => all.findIndex(candidate => Math.abs(candidate - top) < 2) === index);
+    const selectedText = selection.toString();
+    display.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    return { lineCount: lineTops.length, selectedText };
+  });
+}
 
 async function editWrappedItem(page, itemIndex) {
   await page.addStyleTag({ content: '.main { max-width: 260px !important; }' });
@@ -137,6 +163,21 @@ test('click to edit, blur saves, escape cancels', async ({ page }) => {
   await page.locator('.header').click();
   await expect(page.locator('.item-text').first()).toContainText('updated text');
 });
+
+for (const key of ['Backspace', 'Delete']) {
+  test(`${key} removes a multiline selection made before entering edit mode`, async ({ page }) => {
+    const before = await selectWrappedDisplayText(page);
+    expect(before.lineCount).toBeGreaterThan(1);
+
+    const edit = page.locator('[data-section="0"] .item').first().locator('.item-edit');
+    await expect(edit).toBeVisible();
+    expect(await page.evaluate(() => window.getSelection().toString())).toBe(before.selectedText);
+
+    await page.keyboard.press(key);
+
+    await expect(edit).toHaveText('keepstay');
+  });
+}
 
 test('cmd+z undoes a structural deletion while another item is focused and cmd+shift+z redoes it', async ({ page }) => {
   const items = page.locator('[data-section="0"] .item');
