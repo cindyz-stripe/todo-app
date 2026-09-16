@@ -18,4 +18,3 @@ Ordinary clicks keep the existing behavior of placing the caret at the end. The 
 - Verify Backspace removes the selected text.
 - Repeat the deletion assertion for forward Delete.
 - Keep existing active-editor, link, keyboard navigation, data-safety, and undo tests passing.
-
